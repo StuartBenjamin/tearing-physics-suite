@@ -87,3 +87,15 @@ def test_wd_function_negative_prefac_is_nan():
 @pytest.mark.parametrize('iterator', [False, True])
 def test_wd_function_finite(iterator):
     assert np.isfinite(generate_wd_function(_surf(), iterator=iterator)(1e-2))
+
+
+def test_ggj_delta_prime_crit_only_inside_validity_range(code_datasets):
+    # Glasser 1975 Eq. 111 holds for -5/2 < H < 1/2; outside it Delta_prime_crit is NaN (the check was always true)
+    from tearing_physics_suite.physics.surface_terms import deltaprime_crit_on_modes
+    ds = code_datasets['rdcon'].isel(code=0)
+    ref = deltaprime_crit_on_modes(ds)
+    H = ds.H_surf.values.copy()
+    H[0], H[1] = 0.7, -3.0
+    out = deltaprime_crit_on_modes(ds.assign(H_surf=('r', H)))
+    assert np.isnan(out.Delta_prime_crit.values[:2]).all() and np.isfinite(ref.Delta_prime_crit.values[:2]).all()
+    np.testing.assert_array_equal(out.Delta_prime_crit.values[2:], ref.Delta_prime_crit.values[2:])

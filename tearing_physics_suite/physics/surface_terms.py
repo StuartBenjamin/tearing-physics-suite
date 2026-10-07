@@ -418,7 +418,7 @@ def deltaprime_crit_on_modes(rdcon_xarray, force_lmfp=False):
     DeltaPrimeCrits15_no_chifrac = np.full_like(Hs, np.nan)
 
     for i in range(len(Hs)):
-        if not (Hs[i] < 0.5 or Hs[i] > -5/2): # Condition for validity for these formulas
+        if not (-5/2 < Hs[i] < 0.5): # Condition for validity for these formulas (also skips NaN)
             continue
     #########################################################################################################
     # Glasser et al. Phys. Fluids 1975, Eq 111:
