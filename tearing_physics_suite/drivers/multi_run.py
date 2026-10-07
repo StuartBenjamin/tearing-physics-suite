@@ -19,6 +19,7 @@ import zarr
 from scipy.interpolate import Akima1DInterpolator, PPoly
 
 from tearing_physics_suite.drivers.pipeline import nonlinear_resistive_calculation
+from tearing_physics_suite.drivers.store_schema import prepare_for_store
 from tearing_physics_suite.drivers.zarr_store import add_to_zarr_store, zarr_chunk
 from tearing_physics_suite.utils import _get_num_cpus
 from tearing_physics_suite.wrappers.jgpec import precompile_jgpec
@@ -666,6 +667,8 @@ def multi_compile_zarr(
     mb_per_chunk=10,
     report_errs=True,
     meta_data_dicts=None,       # optional per-run dicts (e.g. profile_list) stored via meta_dict_to_dataset
+    store_float32=True,         # store results as float32 (k0/k1/C0 recompute inputs stay float64)
+    drop_duplicates=True,       # drop/blank values that repeat others (drivers/store_schema.py)
 ):
     """Memory-bounded version of multi_compile.
 
@@ -681,6 +684,9 @@ def multi_compile_zarr(
         fully materialized in memory; slice/compute the parts you need.
     compiled_inputs_xr : xr.Dataset
         Small scalar-input dataset (safe to keep in memory).
+
+    Each run is reduced by store_schema.prepare_for_store before it is stored (dwdt_surf dropped,
+    duplicates removed, float32); the per-run files keep everything.
     """
     n_runs = len(eq_filenames)
     meta_data_dicts = meta_data_dicts or []
@@ -743,6 +749,7 @@ def multi_compile_zarr(
         eq_label = os.path.basename(eq_filenames[i])
 
         ds = _zeff_on_psi_n_Zeff(ds)
+        ds = prepare_for_store(ds, store_float32=store_float32, drop_duplicates=drop_duplicates)
 
         # Cast r / r_prime index coords to float to allow nans
         for _dim in ("r", "r_prime"):
@@ -816,6 +823,7 @@ def multi_compile_zarr(
         k: ds_store.sizes[k] for k in ds_store.dims if k != episode_dim
     }
     ds_store = zarr_chunk(ds_store, chunk_spec=chunk_spec)
+    ds_store.attrs.update(store_float32=int(store_float32), drop_duplicates=int(drop_duplicates))
 
     tmp_path = zarr_path + ".tmp"
     ds_store.to_zarr(tmp_path, mode="w", consolidated=True)
