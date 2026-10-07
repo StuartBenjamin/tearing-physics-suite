@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -28,3 +30,16 @@ def test_get_num_cpus(monkeypatch):
 def test_create_dense_log_paramvals_runs():
     vals = create_dense_log_paramvals(1e-1, 1e-3, points_per_decade=5)
     assert len(vals) >= 10 and np.isclose(max(vals), 1e-1) and np.isclose(min(vals), 1e-3)
+
+
+def test_run_executable(tmp_path):
+    from tearing_physics_suite.utils import run_executable
+    exe = tmp_path / 'code'
+    exe.write_text('#!/bin/sh\npwd\necho "$1"\necho oops >&2\nexit 3\n')
+    exe.chmod(0o755)
+    cwd = os.getcwd()
+    assert run_executable([exe, 'a b'], str(tmp_path), 'log.txt') == 3
+    assert os.getcwd() == cwd
+    assert (tmp_path / 'log.txt').read_text().split('\n')[:3] == [str(tmp_path), 'a b', 'oops']
+    exe.write_text('#!/bin/sh\nsleep 5\n')
+    assert run_executable([exe], str(tmp_path), timeout=0.2) is None

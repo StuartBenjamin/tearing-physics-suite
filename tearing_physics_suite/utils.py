@@ -2,6 +2,7 @@
 
 import math
 import os
+import subprocess
 
 import numpy as np
 
@@ -139,3 +140,21 @@ def tps_home():
         return os.environ['TPSHOME']
     except KeyError:
         raise KeyError('TPSHOME is not set; source tearing_physics_suite_env.sh first.') from None
+
+
+def run_executable(cmd, working_dir, log_path=None, timeout=None):
+    """Run a compiled code: cmd (argument list, no shell) in working_dir, stdin closed.
+
+    stdout and stderr go to log_path (relative to working_dir) if given, else to this process's.
+    Returns the exit code; a timeout kills the code and returns None. The Python process's cwd is not changed.
+    """
+    log = open(os.path.join(working_dir, log_path), 'w') if log_path else None
+    try:
+        return subprocess.run([str(c) for c in cmd], cwd=working_dir, stdin=subprocess.DEVNULL, stdout=log,
+                              stderr=subprocess.STDOUT if log else None, timeout=timeout, check=False).returncode
+    except subprocess.TimeoutExpired:
+        print(f"WARNING: {cmd[0]} timed out after {timeout} s")
+        return None
+    finally:
+        if log:
+            log.close()

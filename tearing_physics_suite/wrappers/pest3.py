@@ -3,15 +3,15 @@
 import copy
 import os
 import pickle as pkl
+import shlex
 import shutil
-import subprocess
 import warnings
 
 import numpy as np
 import xarray as xr
 from scipy.interpolate import Akima1DInterpolator
 
-from tearing_physics_suite.utils import eq_stem, tps_home
+from tearing_physics_suite.utils import eq_stem, run_executable, tps_home
 
 _GPEC_VAC_SYMBOL = b'vacuum_mod_MOD_mscvac'
 _gpec_vac_built = {}
@@ -47,8 +47,7 @@ def pest3_vacuum_flag(vacuum_source_pest3, a_wall_pest3, mthvac_pest3):
 
 def build_pest3_command(eq_filename, nn, eq_type_pest3, a_wall_pest3, vacuum_string_pest3, kband_pest3,
                         rational_surface_control_pest3, psilow_pest3, mtheta_pest3, mpsi_pest3, psihigh_pest3,
-                        nx_string_pest3, large_sol_extent_pest3, solver_pest3, terminal_output_control='',
-                        extra_input_string_pest3=''):
+                        nx_string_pest3, large_sol_extent_pest3, solver_pest3, extra_input_string_pest3=''):
     """The pest3x command line run by PEST3_resistive_calculation (in its working directory)."""
     return str('./pest3x -i' + str(eq_type_pest3)
                         + ' -f' + eq_filename
@@ -66,7 +65,6 @@ def build_pest3_command(eq_filename, nn, eq_type_pest3, a_wall_pest3, vacuum_str
                         + ' -s' + str(solver_pest3)
                         + ' -x0'
                         + ' -a0.001'
-                        + ' ' + terminal_output_control
                         + ' ' + extra_input_string_pest3)
 
 
@@ -215,32 +213,26 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
         if verbose: print(f"mtheta_pest3 {mtheta_pest3} is even, raising by 1 to {mtheta_pest3 + 1}")
         mtheta_pest3 += 1
 
-    terminal_output_file = 'pest3_terminal_output_n'+str(nn)+'.txt'
-    if save_terminal_output:
-        terminal_output_control = ' >& ' + terminal_output_file
-        # Remove the file if it exists and fresh_start is True
-        if fresh_start and os.path.exists(os.path.join(working_dir, terminal_output_file)):
-            os.remove(os.path.join(working_dir, terminal_output_file))
-            if verbose: print(f"Removed existing terminal output file {terminal_output_file} from working directory before running pest3")
-    else:
-        terminal_output_control = ''
+    terminal_output_file = 'pest3_terminal_output_n'+str(nn)+'.txt' if save_terminal_output else None
 
     input_string = build_pest3_command(eq_filename, nn, eq_type_pest3, a_wall_pest3, vacuum_string_pest3, kband_pest3,
                                        rational_surface_control_pest3, psilow_pest3, mtheta_pest3, mpsi_pest3,
                                        psihigh_pest3, nx_string_pest3, large_sol_extent_pest3, solver_pest3,
-                                       terminal_output_control, extra_input_string_pest3)
+                                       extra_input_string_pest3)
 
     #########################################################################################################
     # Run PEST3:
     #########################################################################################################
 
-    os.chdir(working_dir)  # Change to the working directory
     # Always remove the previous pest3.nc: it is read straight after this run, so a leftover would be stale.
     if os.path.exists(os.path.join(working_dir, 'pest3.nc')):
         os.remove(os.path.join(working_dir, 'pest3.nc'))
         if verbose: print("Removed existing PEST3 output file from working directory before running pest3")
 
-    status = subprocess.call(input_string, shell=True)
+    # The command string is split as a shell would (quoted -m"..."/-k"..." values), but no shell runs it
+    cmd = shlex.split(input_string)
+    cmd[0] = os.path.join(working_dir, 'pest3x')
+    status = run_executable(cmd, working_dir, terminal_output_file)
     if status != 0:
         print(f"WARNING: pest3x exited with status {status}")
 

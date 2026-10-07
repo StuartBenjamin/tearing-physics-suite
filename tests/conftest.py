@@ -21,7 +21,7 @@ MRE = dict(Zeff=1.5, average_ion_mass=2.5, energy_confinement_time=0.12)
 
 @pytest.fixture(autouse=True)
 def _restore_cwd():
-    """The wrappers chdir into working dirs; put the cwd back after every test."""
+    """Put the cwd back after every test (some tests chdir)."""
     cwd = os.getcwd()
     yield
     os.chdir(cwd)

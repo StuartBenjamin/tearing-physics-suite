@@ -52,7 +52,7 @@ from tearing_physics_suite.wrappers.build.build_GPEC_PEST3 import (  # noqa: E40
 from tearing_physics_suite.wrappers.build.build_netcdf_lapack import build_libraries  # noqa: E402
 
 
-def write_env_file(lib_paths, repo_root, out_path=None, jgpec_home=None):
+def write_env_file(lib_paths, repo_root, out_path=None, jgpec_home=None, julia_depot=None):
     """
     Write a bash environment setup file that configures the shell to run
     GPEC (rdcon, stride, dcon) and PEST3 using the installed libraries.
@@ -70,6 +70,9 @@ def write_env_file(lib_paths, repo_root, out_path=None, jgpec_home=None):
     jgpec_home : str, optional
         jGPEC (Julia GPEC) repository, written as JGPEC_HOME with the Julia executable (JGPEC_JULIA).
         Default: wrappers.jgpec.jgpec_home().
+    julia_depot : str, optional
+        Julia depot for jGPEC, written as JULIA_DEPOT_PATH (with a trailing ':' so Julia's bundled depots
+        follow). Default: $JULIA_DEPOT_PATH; not written if neither is set (Julia then uses ~/.julia).
 
     Returns
     -------
@@ -83,6 +86,7 @@ def write_env_file(lib_paths, repo_root, out_path=None, jgpec_home=None):
     from tearing_physics_suite.wrappers.jgpec import jgpec_home as default_jgpec_home
     from tearing_physics_suite.wrappers.jgpec import julia_exe
     jgpec_home = jgpec_home or default_jgpec_home()
+    julia_depot = (julia_depot or os.environ.get('JULIA_DEPOT_PATH', '')).rstrip(':')
 
     # Detect compilers and get appropriate flags
     from tearing_physics_suite.wrappers.build.compiler_utils import detect_compilers
@@ -149,6 +153,7 @@ def write_env_file(lib_paths, repo_root, out_path=None, jgpec_home=None):
         "# ── jGPEC (Julia GPEC, run_jgpec) ─────────────────────────────────────────",
         f"export JGPEC_HOME={jgpec_home}",
         f"export JGPEC_JULIA={julia_exe()}",
+        *([f"export JULIA_DEPOT_PATH={julia_depot}:"] if julia_depot else []),
         "",
         "echo \"tearing_physics_suite environment loaded.\"",
         f"echo \"  TPSHOME : {repo_root}\"",
@@ -182,6 +187,7 @@ def build_all(
     gpec_branch="OFT_interface",
     pest3_gpec_vacuum=True,
     jgpec_home=None,
+    julia_depot=None,
 ):
     """
     Run the full tearing-physics-suite build pipeline.
@@ -233,6 +239,8 @@ def build_all(
     jgpec_home : str, optional
         jGPEC repository written to the env file as JGPEC_HOME (default $JGPEC_HOME, else
         /fusion/projects/tmdb/src/GPEC).
+    julia_depot : str, optional
+        Julia depot written to the env file as JULIA_DEPOT_PATH (default $JULIA_DEPOT_PATH).
 
     Returns
     -------
@@ -377,7 +385,7 @@ def build_all(
     # Write environment setup bash file
     # ------------------------------------------------------------------
     if lib_paths:
-        env_file = write_env_file(lib_paths, repo_root, jgpec_home=jgpec_home)
+        env_file = write_env_file(lib_paths, repo_root, jgpec_home=jgpec_home, julia_depot=julia_depot)
         print(f"\n  Environment file : {env_file}")
         print("  Source it with:  source tearing_physics_suite_env.sh")
     else:
@@ -429,6 +437,8 @@ def main():
     parser.add_argument("--rebuild-pest3", action="store_true", help="Force clean rebuild of PEST3")
     parser.add_argument("--jgpec-home", type=str, default=None,
                         help="jGPEC repository for run_jgpec, written to the env file (default: $JGPEC_HOME, else /fusion/projects/tmdb/src/GPEC)")
+    parser.add_argument("--julia-depot", type=str, default=None,
+                        help="Julia depot for jGPEC, written to the env file as JULIA_DEPOT_PATH (default: $JULIA_DEPOT_PATH)")
     parser.add_argument("--pest3-native-vacuum", action="store_true", help="Build PEST3 without GPEC's VACUUM (no pest3x -V)")
     parser.add_argument("--rebuild-gpec", action="store_true", help="Force clean rebuild of GPEC (make clean, deps/lib; keeps the source)")
     parser.add_argument("--remake-gpec", action="store_true",
@@ -462,6 +472,7 @@ def main():
         gpec_branch=args.gpec_branch,
         pest3_gpec_vacuum=not args.pest3_native_vacuum,
         jgpec_home=args.jgpec_home,
+        julia_depot=args.julia_depot,
     )
 
     sys.exit(0 if success else 1)

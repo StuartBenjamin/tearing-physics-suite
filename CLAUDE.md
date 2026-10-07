@@ -43,8 +43,8 @@
 - Per-code datasets go through `add_code_dim` and `combine_codes` (`physics/combine.py`); `CODE_ORDER` sets the
   order on the `code` dim. Grep for hard-coded code names ('rdcon', 'stride', 'pest3', 'jGPEC_').
 - jGPEC: codes `jGPEC_galerkin`/`jGPEC_riccati`, surfaces put on RDCON's by `align_surfaces` after the Delta'
-  coupling. Julia: `JGPEC_HOME` (default `/fusion/projects/tmdb/src/GPEC`, branch `PSFC_dev`), depot
-  `/fusion/projects/tmdb/julia_depot_benjamins` (the module's depot hangs on NFS); `LD_LIBRARY_PATH` is dropped
+  coupling. Julia: `JGPEC_HOME` (default `/fusion/projects/tmdb/src/GPEC`, branch `PSFC_dev`), depot from
+  `JULIA_DEPOT_PATH` in the env file (`tps-build --julia-depot`; the module's depot hangs on NFS); `LD_LIBRARY_PATH` is dropped
   for Julia. Check inputs with `check_namelists --codes jgpec`.
 
 ## Environment and git

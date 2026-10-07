@@ -138,3 +138,16 @@ def test_env_file_records_versions(tmp_path, monkeypatch):
     monkeypatch.setattr(bts, 'git_describe', lambda p: f'desc-{p.name}')
     text = bts.write_env_file({}, tmp_path).read_text()
     assert '#   GPEC : desc-GPEC' in text and '#   PEST3: desc-PEST3' in text
+
+
+def test_env_file_julia_depot(tmp_path, monkeypatch):
+    import tearing_physics_suite.wrappers.build.compiler_utils as cu
+    monkeypatch.setenv('TPSHOME', os.environ.get('TPSHOME', ''))
+    import tearing_physics_suite.wrappers.build.build_tearing_physics_suite as bts
+    monkeypatch.setattr(cu, 'detect_compilers', lambda mpi=True: dict(fc='gfortran', cc='gcc', fflags_base='', compiler_type='gfortran'))
+    monkeypatch.setattr(bts, 'git_describe', lambda p: 'x')
+    monkeypatch.delenv('JULIA_DEPOT_PATH', raising=False)
+    assert 'JULIA_DEPOT_PATH' not in bts.write_env_file({}, tmp_path).read_text()
+    assert 'export JULIA_DEPOT_PATH=/d/depot:\n' in bts.write_env_file({}, tmp_path, julia_depot='/d/depot').read_text()
+    monkeypatch.setenv('JULIA_DEPOT_PATH', '/e/depot:')
+    assert 'export JULIA_DEPOT_PATH=/e/depot:\n' in bts.write_env_file({}, tmp_path).read_text()

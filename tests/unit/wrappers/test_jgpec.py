@@ -160,7 +160,7 @@ class _FakeServer:
 
 def test_run_both_solvers(tmp_path, monkeypatch, inputs, code_fixture):
     srv = _FakeServer()
-    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1: srv)
+    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1, log_dir=None: srv)
     xrs, ran = jgpec.run_jgpec_solvers(str(EQ), 1, str(tmp_path), inputs(vac_flag='t'), code_fixture('rdcon'),
                                        solvers=('galerkin', 'riccati'), output_location=str(tmp_path / 'out'))
     assert ran == {'jGPEC_galerkin': True, 'jGPEC_riccati': True}
@@ -172,7 +172,7 @@ def test_run_both_solvers(tmp_path, monkeypatch, inputs, code_fixture):
 
 def test_run_riccati_skipped_with_wall_and_failure(tmp_path, monkeypatch, inputs, code_fixture):
     srv = _FakeServer(fail=('galerkin',))
-    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1: srv)
+    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1, log_dir=None: srv)
     xrs, ran = jgpec.run_jgpec_solvers(str(EQ), 1, str(tmp_path), inputs(vac_flag='f'), code_fixture('rdcon'),
                                        solvers=('galerkin', 'riccati'))
     assert ran == {'jGPEC_galerkin': False, 'jGPEC_riccati': False}
@@ -181,7 +181,7 @@ def test_run_riccati_skipped_with_wall_and_failure(tmp_path, monkeypatch, inputs
 
 
 def test_run_writes_d3d_wall(tmp_path, monkeypatch, inputs, code_fixture):
-    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1: _FakeServer())
+    monkeypatch.setattr(jgpec, 'get_server', lambda threads=1, log_dir=None: _FakeServer())
     jgpec.run_jgpec_solvers(str(EQ), 1, str(tmp_path), inputs(vac_flag='t', ishape=8, a_wall=1), code_fixture('rdcon'))
     toml = tomllib.load(open(tmp_path / 'jgpec_galerkin' / 'gpec.toml', 'rb'))
     assert toml['Wall']['shape'] == str(tmp_path / 'jgpec_galerkin' / 'd3d_wall.dat')

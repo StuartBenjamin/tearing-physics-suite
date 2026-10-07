@@ -21,9 +21,9 @@ from tearing_physics_suite.wrappers.gpec_common import save_output
 SOLVERS = ('galerkin', 'riccati')
 SERVER_JL = Path(__file__).with_name('jgpec_server.jl')
 JULIA_INSTALL = '/fusion/projects/codes/julia/julia-1.11.7/bin/julia'
-# Defaults where unset (`module load julia` is not used: its purge() would drop the compiler modules)
+# Defaults where unset (`module load julia` is not used: its purge() would drop the compiler modules).
+# The depot comes from JULIA_DEPOT_PATH (tearing_physics_suite_env.sh, `tps-build --julia-depot`).
 _JULIA_DEFAULTS = {
-    'JULIA_DEPOT_PATH': '/fusion/projects/tmdb/julia_depot_benjamins:',
     'JULIA_CPU_TARGET': 'generic',
     'OPENBLAS_NUM_THREADS': '1',
 }
@@ -220,11 +220,11 @@ class JuliaServer:
 _SERVER = None
 
 
-def get_server(threads=1):
-    """This process's JuliaServer (started on first use, closed at exit)."""
+def get_server(threads=1, log_dir=None):
+    """This process's JuliaServer (started on first use, closed at exit); its log goes in log_dir (default cwd)."""
     global _SERVER
     if _SERVER is None:
-        _SERVER = JuliaServer(threads=threads)
+        _SERVER = JuliaServer(threads=threads, log_path=os.path.join(log_dir or os.getcwd(), f'jgpec_server_{os.getpid()}.log'))
         atexit.register(_SERVER.close)
     return _SERVER
 
@@ -322,7 +322,7 @@ def run_jgpec_solvers(eq_filename, nn, working_dir, inputs, rdcon_xr, solvers=('
         write_gpec_toml(run_dir, sections)
         if verbose: print(f"Running jGPEC {solver} in {run_dir}...")
         try:
-            ok, msg = get_server(threads).run(run_dir, timeout)
+            ok, msg = get_server(threads, working_dir).run(run_dir, timeout)
         except (TimeoutError, RuntimeError, OSError) as e:
             ok, msg = False, str(e)
         h5 = os.path.join(run_dir, 'gpec.h5')

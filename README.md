@@ -12,7 +12,7 @@ Core capabilities:
 
 These scripts package and compute toroidal 𝚫’ values using pre-existing fortran codes RDCON [1], STRIDE [2] and PEST3 [3].
 Optionally (`run_jgpec=True`, `jgpec_solvers=('galerkin', 'riccati')`), 𝚫’ also comes from jGPEC, the Julia GPEC
-(`$JGPEC_HOME`, default `/fusion/projects/tmdb/src/GPEC`), as codes `jGPEC_galerkin` / `jGPEC_riccati`.
+(`$JGPEC_HOME`, default `/fusion/projects/tmdb/src/GPEC`), as codes `jGPEC_galerkin` / `jGPEC_riccati`. The Julia depot is `$JULIA_DEPOT_PATH`, written to the env file by `tps-build --julia-depot DIR`.
 
 ![workflow diagram](workflow_diagram.svg)
 

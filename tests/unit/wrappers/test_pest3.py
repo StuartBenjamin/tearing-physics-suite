@@ -331,3 +331,17 @@ def test_rename_deprecated_pest3_kwargs():
         out = rename_deprecated_pest3_kwargs(kw)
     assert out is kw
     assert kw == {'psihigh_pest3': 0.99, 'pull_mtheta_pest3': False, 'nx_pest3': 6, 'run_pest3': True}
+
+
+def test_pest3x_args_split_as_by_a_shell_and_cwd_unchanged(tmp_path):
+    """pest3x runs without a shell or chdir: quoted values arrive as one argument; output goes to the log."""
+    exe_dir, eq = _fake_pest3(tmp_path, 'for a in "$@"; do echo "$a"; done > args.txt; echo out; echo err >&2')
+    work = tmp_path / 'work'
+    work.mkdir()
+    cwd = os.getcwd()
+    p3w.PEST3_resistive_calculation(eq, 1, working_dir=str(work), pest3_dir=exe_dir, verbose=False, save_input=False,
+                                    clean_netcdf=False, vacuum_source_pest3='pest3', save_terminal_output=True)
+    assert os.getcwd() == cwd
+    args = (work / 'args.txt').read_text().splitlines()
+    assert '-k100 50 80 140' in args and '-mxxxxxxxxxxxxxxx' in args and '-fg000001.00001' in args
+    assert (work / 'pest3_terminal_output_n1.txt').read_text().split() == ['out', 'err']

@@ -118,7 +118,6 @@ def GPEC_resistive_calculation(eq_filename, nn, run_rdcon=False, run_stride=Fals
     # Run the codes and read their outputs:
     #########################################################################################################
 
-    os.chdir(working_dir)  # Change to the working directory
     run_opts = dict(fresh_start=fresh_start, save_terminal_output=save_terminal_output, verbose=verbose)
     rdcon_xr, rdcon_ran = rdcon_wrapper.run_rdcon(gpec_dir, working_dir, nn, **run_opts) if run_rdcon else (None, False)
     stride_xr, stride_ran = stride_wrapper.run_stride(gpec_dir, working_dir, nn, **run_opts) if run_stride else (None, False)
