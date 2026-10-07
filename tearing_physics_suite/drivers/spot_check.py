@@ -198,7 +198,10 @@ def compile_spot_checks(master_working_dir, verbose=True):
 def spot_report(ds, results, master_working_dir):
     """Text report: flagged runs (scan, n, codes), per-code Delta' spread, known issues, STRIDE/RDCON disagreements."""
     plan_path = os.path.join(spot_dir(master_working_dir), 'plan.json')
-    rel = float(json.load(open(plan_path))['rel_threshold']) if os.path.exists(plan_path) else np.nan
+    rel = np.nan
+    if os.path.exists(plan_path):
+        with open(plan_path) as f:
+            rel = float(json.load(f)['rel_threshold'])
     codes = [str(c) for c in ds.code.values]
     lines = [f'Spot-checks: {len(set(ds.run_idx.values.tolist()))} runs, {ds.sizes["spot"]} (run, scan, n) checks.']
     flagged = ds.rel_exceeded_psi95 == 1

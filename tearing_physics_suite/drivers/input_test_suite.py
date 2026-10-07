@@ -49,7 +49,6 @@ class ScanSpec:
 
 
 def _pest3_nx_name(vals):
-    # If scan_vals is provided, check first element to determine whether we're scanning over nx_pest or nx_string_pest
     """PEST3 grid input scanned: nx_string_pest for -k strings, else nx_pest."""
     return 'nx_string_pest' if isinstance(vals[0], str) else 'nx_pest'
 

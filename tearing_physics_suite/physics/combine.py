@@ -225,6 +225,7 @@ def combine_codes(datasets, nn, debug=False, **concat_kwargs):
     Returns (combined_xr or None, dropped), dropped = {code: dataset left out}.
     """
     items = [(code, ds) for code, ds in datasets.items() if ds is not None]
+    concat_kwargs = {'join': 'outer', **concat_kwargs}  # outer join on r etc. (xarray's default will become 'exact')
     combined, dropped = None, {}
     if items:
         try:

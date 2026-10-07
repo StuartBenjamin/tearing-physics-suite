@@ -538,7 +538,7 @@ def multi_compile(eq_filenames, master_working_dir, shot_time_list=None, debug=F
 
     # Concatenate xarrays along a new 'equilibrium' dimension
     try:
-        compiled_xr = xr.concat(combined_xr_list, dim='run_idx')
+        compiled_xr = xr.concat(combined_xr_list, dim='run_idx', join='outer')
         broken_xr_list = None
     except Exception:
         print("[multi_compile] Regular concat failed, attempting intelligent_concat...")
@@ -592,7 +592,7 @@ def _divide_and_conquer(chunk, dim='run_idx'):
         if not sub:
             return None
         try:
-            return xr.concat(sub, dim=dim)
+            return xr.concat(sub, dim=dim, join='outer')
         except Exception:
             if len(sub) == 1:
                 broken.append(sub[0])
@@ -604,7 +604,7 @@ def _divide_and_conquer(chunk, dim='run_idx'):
             if not parts:
                 return None
             try:
-                return xr.concat(parts, dim=dim)
+                return xr.concat(parts, dim=dim, join='outer')
             except Exception:
                 # Two individually-clean halves are mutually incompatible.
                 # Keep the larger half; demote the smaller's members to broken.
@@ -665,7 +665,7 @@ def intelligent_concat(combined_xr_list, dim='run_idx'):
 
     # --- Step 3: concat, with value-level fallback ------------------------
     try:
-        combined = xr.concat(candidates, dim=dim)
+        combined = xr.concat(candidates, dim=dim, join='outer')
     except Exception:
         combined, extra_broken = _divide_and_conquer(candidates, dim)
         broken.extend(extra_broken)

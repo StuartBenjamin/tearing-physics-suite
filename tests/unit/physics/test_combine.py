@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -111,3 +113,15 @@ def test_combine_codes_debug_raises():
 
 def test_combine_codes_empty():
     assert combine_codes({'rdcon': None}, nn=None) == (None, {})
+
+
+def test_combine_codes_outer_join_without_future_warning():
+    # Codes with different surfaces: union of r, NaN where a code lacks one (explicit join, no FutureWarning)
+    a = add_code_dim(xr.Dataset({'x': ('r', [1.0, 2.0])}, coords={'r': [2.0, 3.0]}), 'rdcon')
+    b = add_code_dim(xr.Dataset({'x': ('r', [5.0])}, coords={'r': [2.0]}), 'pest3')
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', FutureWarning)
+        out, dropped = combine_codes({'rdcon': a, 'pest3': b}, nn=1)
+    assert dropped == {} and out.r.values.tolist() == [2.0, 3.0]
+    pest3 = out.x.sel(code='pest3').squeeze('nn')
+    assert pest3.sel(r=2.0) == 5.0 and np.isnan(pest3.sel(r=3.0))

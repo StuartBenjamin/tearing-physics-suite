@@ -52,6 +52,6 @@ uv run tearing_physics_suite/wrappers/build/build_tearing_physics_suite.py --ski
     --work-dir $PSCRATCH/tmdb/build/tps --gpec-branch Zeff_profile_support
 ```
 - **CFS is too slow for compiling.** `--work-dir` (or `TPS_BUILD_DIR`) compiles PEST3 and GPEC there and copies the executables back into `submodules/`. A full build takes about 15 min: PEST3 about 5 min with `-j1`, GPEC about 4 min, plus the install tests.
-- **GPEC compilers.** GPEC gets plain `gfortran`/`gcc`, because its makefile rejects `mpif90`/`mpicc`. PEST3 still uses the MPI wrappers. The env file now exports the plain compilers.
+- **GPEC compilers.** GPEC gets plain `gfortran`/`gcc`, because its makefile rejects `mpif90`/`mpicc`. PEST3 gets the detected FC/CC/CXX (since 2c6604a), not any `mpif90` on PATH. The env file now exports the plain compilers.
 - **GCC 14.** PEST3's C is configured with `-fpermissive` for GCC >= 14 (implicit declarations in portlib).
 - **GPEC install test.** On `Zeff_profile_support` the DIIID examples still have the legacy g147131 inputs, so the "current" test checks them against the legacy references. It prints a NOTE when it does this.
