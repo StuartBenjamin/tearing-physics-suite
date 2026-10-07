@@ -36,7 +36,7 @@ GPEC_FILES = {
 }
 CODE_FILES = {'rdcon': ('rdcon.in', 'equil.in', 'vac.in'), 'stride': ('stride.in', 'equil.in', 'vac.in')}
 # Extra write configurations that switch on optional branches (--all-paths)
-ALL_PATH_CONFIGS = [dict(vac_flag='f', ode_flag='f'), dict(dump_MRE_data='t'), dict(eq_type="'ldp_i'"),
+ALL_PATH_CONFIGS = [dict(vac_flag='f', ode_flag='f'), dict(eq_type="'ldp_i'"),
                     dict(Zeff={'x': [0.0, 0.5, 1.0], 'y': [1.5, 2.0, 2.5]}), dict(gal_xmin_flag='t')]
 # gpec.toml section -> @kwdef struct it is splatted into (GeneralizedPerturbedEquilibrium.jl)
 JGPEC_SECTIONS = {'Equilibrium': 'EquilibriumConfig', 'Wall': 'WallShapeSettings',
@@ -199,13 +199,13 @@ def tps_pest3_command(**pest3_kwargs):
     k = {n: p.default for n, p in inspect.signature(PEST3_resistive_calculation).parameters.items()
          if p.default is not inspect.Parameter.empty}
     k.update(pest3_kwargs)
-    if k['nx_pest'] != 0:
-        k['nx_string_pest'] = ' -k' + str(k['nx_pest'])
-    vac = pest3_vacuum_flag(k['vacuum_source_pest'], k['a_wall_pest'], k['mthvac_pest'])
-    return build_pest3_command(EQ_NAME, 1, k['eq_type_pest'], k['a_wall_pest'], vac, k['kband_pest'],
-                               k['rational_surface_control_pest'], k['psilow_pest'], k['mtheta_pest'], k['mpsi_pest'],
-                               k['psihigh_pest'], k['nx_string_pest'], k['large_sol_extent_pest'], k['solver_pest'],
-                               extra_input_string_pest=k['extra_input_string_pest'])
+    if k['nx_pest3'] != 0:
+        k['nx_string_pest3'] = ' -k' + str(k['nx_pest3'])
+    vac = pest3_vacuum_flag(k['vacuum_source_pest3'], k['a_wall_pest3'], k['mthvac_pest3'])
+    return build_pest3_command(EQ_NAME, 1, k['eq_type_pest3'], k['a_wall_pest3'], vac, k['kband_pest3'],
+                               k['rational_surface_control_pest3'], k['psilow_pest3'], k['mtheta_pest3'], k['mpsi_pest3'],
+                               k['psihigh_pest3'], k['nx_string_pest3'], k['large_sol_extent_pest3'], k['solver_pest3'],
+                               extra_input_string_pest3=k['extra_input_string_pest3'])
 
 
 def tps_jgpec_toml(configs=JGPEC_CONFIGS):

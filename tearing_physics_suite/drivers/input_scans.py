@@ -63,10 +63,10 @@ def scan_1D_input(input_name,input_values,eq_filename,
     # Add input name and value to output_prefix
     #########################################################################################################
         kwargs["output_prefix"] = output_prefix_tmp
-        if not (input_name == 'nx_string_pest' or input_name == 'jac_type' or input_name == 'grid_type' or input_name == 'solver'):
+        if not (input_name == 'nx_string_pest3' or input_name == 'jac_type' or input_name == 'grid_type' or input_name == 'solver'):
             kwargs["output_prefix"] += f"{input_name}_{value}"
             print(f"Running scan for {input_name} = {value}")
-        elif input_name == 'nx_string_pest':
+        elif input_name == 'nx_string_pest3':
             kwargs["output_prefix"] += f"{input_name}_case{casenum}"
             print(f"Running scan for {input_name} = case{casenum}")
             casenum += 1

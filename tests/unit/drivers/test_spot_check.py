@@ -45,14 +45,14 @@ def test_plan_reproducible_and_reused(tmp_path):
 def test_resolve_spec_database_settings():
     db = dict(vac_flag='f', a_wall=0.3, ishape=8, run_pest3=False, run_jgpec=True, mtheta=257, ode_flag='t',
               psihigh=0.99, Zeff=1.5, k1=2.0, nvec=[1, 2], working_dir='W', output_location='O', tau_e_label='t',
-              nx_pest=100, jgpec_solvers=('galerkin',))
+              nx_pest3=100, jgpec_solvers=('galerkin',))
     spec, kw = sc.resolve_spec(SCANS['vacuum_mtheta_scan'], db, nn=2)  # spec fixes NO_WALL, a_wall=0.1
     assert spec.nn == 2 and 'vac_flag' not in spec.fixed and 'a_wall' not in spec.fixed
     assert kw['vac_flag'] == 'f' and kw['a_wall'] == 0.3 and kw['ishape'] == 8
     assert spec.fixed['run_pest3'] is False
     for k in ('Zeff', 'k1', 'nvec', 'working_dir', 'output_location', 'tau_e_label'):
         assert k not in kw
-    assert kw['run_jgpec'] and kw['jgpec_solvers'] == ('galerkin',) and kw['nx_pest'] == 100
+    assert kw['run_jgpec'] and kw['jgpec_solvers'] == ('galerkin',) and kw['nx_pest3'] == 100
 
     spec, kw = sc.resolve_spec(SCANS['pest3_finite_element_scan'], db, nn=1)
     assert spec.fixed['run_pest3'] is False and spec.fixed['run_stride'] is True  # never turns on a code

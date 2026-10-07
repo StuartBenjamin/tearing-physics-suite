@@ -140,13 +140,25 @@ def extend_zarr_along_dim(zarr_path: os.PathLike, dim: str, n_extend: int) -> No
     ds_padding.to_zarr(zarr_path, mode="a-", append_dim=dim, consolidated=True, align_chunks=True)
 
 
+def vlen_strings(ds: xr.Dataset) -> xr.Dataset:
+    """ds with fixed-length string variables and coords ('<U') encoded as variable-length strings.
+
+    zarr v3 has no stable spec for fixed-length strings (UnstableSpecificationWarning); variable-length ones have one.
+    """
+    ds = ds.copy()
+    for var in ds.variables.values():
+        if var.dtype.kind == "U":
+            var.encoding["dtype"] = object  # encoding, since index coords keep '<U' under astype
+    return ds
+
+
 def add_to_zarr_store(  # noqa: PLR0912
     ds: xr.Dataset, zarr_path: os.PathLike, episode_dim: str, time_dim: str | None = None, store_time_dim_size: int | None = None
 ) -> bool:
     """Helper function to add a single xarray Dataset to a zarr store. Requires that the zarr store either doesn't exist or already contains all the dimensions in the provided Dataset."""
 
     # We need to reset all the non-index coordinates to make sure they get vary across episodes.
-    ds = ds.reset_coords()
+    ds = vlen_strings(ds.reset_coords())
 
     if time_dim is not None and time_dim in ds.coords:
         ds = ds.drop_vars(time_dim)

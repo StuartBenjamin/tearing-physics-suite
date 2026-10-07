@@ -5,6 +5,7 @@ import stat
 import pytest
 import xarray as xr
 
+from tearing_physics_suite.wrappers import run_codes
 from tearing_physics_suite.wrappers.gpec import GPEC_resistive_calculation
 from tearing_physics_suite.wrappers.gpec_common import executable
 from tearing_physics_suite.wrappers.run_codes import _rel_diff, run_resistive_calculation
@@ -58,3 +59,15 @@ def test_run_resistive_calculation_make_results_dir_false_saves_nothing(tmp_path
 def test_rel_diff():
     assert _rel_diff(2.0, 2.0) == 0.0 and _rel_diff(0.0, 0.0) == 0.0
     assert _rel_diff(1.0, 3.0) == 1.0 and _rel_diff(0.0, 1e-3) == 2.0
+
+
+def test_jgpec_skipped_when_rdcon_fails(tmp_path, eq_file, monkeypatch):
+    def no_jgpec(*a, **k):
+        raise AssertionError('jGPEC must not run without RDCON')
+    monkeypatch.setattr(run_codes, 'run_jgpec_solvers', no_jgpec)
+    res = run_resistive_calculation(eq_file, 1, run_stride=False, run_pest3=False, run_jgpec=True,
+                                    jgpec_solvers=('galerkin', 'riccati'), working_dir=str(tmp_path / 'work'),
+                                    gpec_dir=_fake_gpec(tmp_path, exit_code=3), verbose=False)
+    assert not res.rdcon_ran
+    assert res.jgpec_xrs == {'jGPEC_galerkin': None, 'jGPEC_riccati': None}
+    assert res.jgpec_ran == {'jGPEC_galerkin': False, 'jGPEC_riccati': False}

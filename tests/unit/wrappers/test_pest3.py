@@ -36,7 +36,7 @@ def test_stale_pest3_nc_not_read(tmp_path):
     try:
         pest3_xr, pest3_ran, _ = p3w.PEST3_resistive_calculation(
             eq, 1, working_dir=str(work), pest3_dir=exe_dir, verbose=False,
-            save_input=False, clean_netcdf=False, vacuum_source_pest='pest3')
+            save_input=False, clean_netcdf=False, vacuum_source_pest3='pest3')
     finally:
         os.chdir(cwd)
     assert pest3_xr is None
@@ -85,7 +85,7 @@ def _run_gpec_vac(tmp_path, body, vac_in=True):
     try:
         return p3w.PEST3_resistive_calculation(
             eq, 1, working_dir=str(work), pest3_dir=exe_dir, verbose=False,
-            save_input=False, clean_netcdf=False, mthvac_pest=480), work
+            save_input=False, clean_netcdf=False, mthvac_pest3=480), work
     finally:
         os.chdir(cwd)
 
@@ -102,11 +102,11 @@ def test_gpec_vacuum_needs_vac_in(tmp_path):
 
 
 def test_gpec_vacuum_passes_V_flag(tmp_path):
-    """-V<mthvac_pest> reaches pest3x, and the input dict records the source."""
+    """-V<mthvac_pest3> reaches pest3x, and the input dict records the source."""
     (_, _, inputs), work = _run_gpec_vac(tmp_path, '# vacuum_mod_MOD_mscvac\necho "$@" > args.txt')
     assert ' -V480 ' in ' ' + (work / 'args.txt').read_text() + ' '
-    assert inputs['vacuum_source_pest'] == 'gpec'
-    assert inputs['mthvac_pest'] == 480
+    assert inputs['vacuum_source_pest3'] == 'gpec'
+    assert inputs['mthvac_pest3'] == 480
 
 
 # pest3_clean_netcdf before the rename/pad rewrite (refactor_changes.md), verbatim.
@@ -147,23 +147,23 @@ def _old_pest3_clean_netcdf(ps3, debug=True, drop_soln_info=True, q_rationals=No
 
     #Names of dims:
     missing_m_from_gpec = []
-    missing_m_from_pest = []
+    missing_m_from_pest3 = []
     if len(ps3.cmatch.dims) > 0:
         surfdim=ps3.cmatch.dims[0]
         unknowndim=ps3.x1frbo_re.dims[1]
         if q_rationals is not None:
             # We convert q_rationals to m values:
             m_gpec = np.round(np.squeeze(q_rationals*ps3.n.values))
-            m_pest = np.round(np.squeeze(ps3.qslay.values*ps3.n.values))
+            m_pest3 = np.round(np.squeeze(ps3.qslay.values*ps3.n.values))
 
-            #Check no values in m_pest are missing from m_gpec:
-            missing_m_from_gpec = [m for m in m_pest if m not in m_gpec]
-            missing_m_from_pest = [m for m in m_gpec if m not in m_pest]
+            #Check no values in m_pest3 are missing from m_gpec:
+            missing_m_from_gpec = [m for m in m_pest3 if m not in m_gpec]
+            missing_m_from_pest3 = [m for m in m_gpec if m not in m_pest3]
 
             assert len(missing_m_from_gpec) == 0, "Some m values from GPEC are not in PEST3 output. Check truncation logic."
 
-            if len(missing_m_from_pest) > 0:
-                assert min(missing_m_from_pest) > max(m_pest), "Some interior m values from PEST3 are not in GPEC output. Check truncation logic."
+            if len(missing_m_from_pest3) > 0:
+                assert min(missing_m_from_pest3) > max(m_pest3), "Some interior m values from PEST3 are not in GPEC output. Check truncation logic."
     else: #No rational surfaces calculated
         surfdim=None
         unknowndim=ps3.x1frbo_re.dims[0]
@@ -214,7 +214,7 @@ def _old_pest3_clean_netcdf(ps3, debug=True, drop_soln_info=True, q_rationals=No
         raise ValueError("PEST3 output does not have a variable named 'r_temp'. Check PEST3 output and cleaning logic.")
 
     for varname, da in ps3.data_vars.items():
-        if len(missing_m_from_pest) > 0:
+        if len(missing_m_from_pest3) > 0:
             # We expand ps3[varname] such that ps3[varname].r matches input DataArray r:
             if 'r_temp' in da.dims and 'r_prime_temp' not in da.dims:
                 tempvals = da.values
@@ -301,14 +301,14 @@ FULL_RDCON = 'g147131.02300_DIIID_KEFIT_rdcon_n1.nc'  # same equilibrium, untrun
 
 @needs_p985
 @pytest.mark.parametrize('drop_soln_info', [True, False])
-@pytest.mark.parametrize('case', ['own_rdcon', 'missing_m_from_pest', 'missing_m_from_gpec', 'no_rdcon'])
+@pytest.mark.parametrize('case', ['own_rdcon', 'missing_m_from_pest3', 'missing_m_from_gpec', 'no_rdcon'])
 def test_clean_netcdf_identical_to_old(case, drop_soln_info):
     surf = {'own_rdcon': lambda: _surfaces(P985_RDCON),
-            'missing_m_from_pest': lambda: _surfaces(FULL_RDCON),
+            'missing_m_from_pest3': lambda: _surfaces(FULL_RDCON),
             'missing_m_from_gpec': lambda: _surfaces(P985_RDCON, n_surf=2),
             'no_rdcon': lambda: {}}[case]()
     new = _check_same(P985, drop_soln_info, **surf)
-    if case == 'missing_m_from_pest' and drop_soln_info:
+    if case == 'missing_m_from_pest3' and drop_soln_info:
         assert new.sizes['r'] == 5 and np.isnan(new.Delta_prime.isel(i=0, r=-1)).all()
 
 
@@ -322,3 +322,12 @@ def test_clean_netcdf_does_not_mutate_input():
     ps3 = xr.open_dataset(P985)
     p3w.pest3_clean_netcdf(ps3, debug=False, **_surfaces(P985_RDCON))
     assert ps3.attrs == {} and 'vacmat' in ps3
+
+
+def test_rename_deprecated_pest3_kwargs():
+    from tearing_physics_suite.wrappers.pest3 import rename_deprecated_pest3_kwargs
+    kw = {'psihigh_pest': 0.99, 'pest_pull_mtheta': False, 'nx_pest': 4, 'nx_pest3': 6, 'run_pest3': True}
+    with pytest.warns(FutureWarning):
+        out = rename_deprecated_pest3_kwargs(kw)
+    assert out is kw
+    assert kw == {'psihigh_pest3': 0.99, 'pull_mtheta_pest3': False, 'nx_pest3': 6, 'run_pest3': True}

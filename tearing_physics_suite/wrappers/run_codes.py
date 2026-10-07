@@ -8,7 +8,11 @@ import numpy as np
 from tearing_physics_suite.utils import tps_home
 from tearing_physics_suite.wrappers.gpec import GPEC_resistive_calculation, _default_eq_type
 from tearing_physics_suite.wrappers.jgpec import check_jgpec_request, run_jgpec_solvers
-from tearing_physics_suite.wrappers.pest3 import PEST3_resistive_calculation, pest3_special_truncation_loop
+from tearing_physics_suite.wrappers.pest3 import (
+    PEST3_resistive_calculation,
+    pest3_special_truncation_loop,
+    rename_deprecated_pest3_kwargs,
+)
 
 
 class CodeResults(NamedTuple):
@@ -37,9 +41,9 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
         output_prefix='',
         save_input=True,
         save_terminal_output=False, #Currently broken
-        pest_match_truncation=True,
+        match_truncation_pest3=True,
         override_save=True,
-        pest_pull_mtheta=True, # Change at your own risk, see mtheta_scan scan results
+        pull_mtheta_pest3=True, # Change at your own risk, see mtheta_scan scan results
         debug_GPEC_resistive_calculation=False, #Quick exit after GPEC resistive calculation
         ascii_q_plot=False,       # Print an ascii q-profile plot after the GPEC run
         run_jgpec=False,          # Also compute Delta' with jGPEC (Julia GPEC); needs run_rdcon for the surface map
@@ -70,10 +74,10 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
         If specified, save output files to this location.
     output_prefix : str
         Prefix for output filenames.
-    pest_match_truncation : bool
-        Match PEST3 truncation to GPEC/STRIDE. Overridden by psihigh_pest kwarg.
+    match_truncation_pest3 : bool
+        Match PEST3 truncation to GPEC/STRIDE. Overridden by psihigh_pest3 kwarg.
     **kwargs
-        Forwarded to write_rdcon_stride_inputs and PEST3_resistive_calculation.
+        Forwarded to write_rdcon_stride_inputs and PEST3_resistive_calculation. Old *_pest names (now *_pest3) still work, with a warning.
 
     Returns
     -------
@@ -94,8 +98,12 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
     if working_dir is None:
         working_dir = os.path.join(tps_home(), 'working_dir')
 
+    rename_deprecated_pest3_kwargs(kwargs)
+    match_truncation_pest3 = kwargs.pop('match_truncation_pest3', match_truncation_pest3)
+    pull_mtheta_pest3 = kwargs.pop('pull_mtheta_pest3', pull_mtheta_pest3)
+
     #Extract keyword arguments for PEST3
-    pest3_kwargs_dict = {k: v for k, v in kwargs.items() if k.endswith('_pest')}
+    pest3_kwargs_dict = {k: v for k, v in kwargs.items() if k.endswith('_pest3')}
     if not override_save:
         pest3_kwargs_dict.update({"override_save":False})
 
@@ -107,12 +115,12 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
     #Extract keyword arguments for jGPEC
     jgpec_kwargs = {k: kwargs.pop(k) for k in [k for k in kwargs if k.endswith('_jgpec')]}
     if run_jgpec:
-        check_jgpec_request(jgpec_solvers, kwargs.get('vac_flag', 't'), run_rdcon)
+        jgpec_solvers = check_jgpec_request(jgpec_solvers, kwargs.get('vac_flag', 't'), run_rdcon)
     # Make equilibrium type consistent (default case is eqdsk):
     _default_eq_type(eq_filename, kwargs)
     if 'eq_type' in kwargs:
         if kwargs['eq_type'] == """'ldp_i'""" or kwargs['eq_type'] == '''"ldp_i"''':
-            pest3_kwargs_dict['eq_type_pest']=8
+            pest3_kwargs_dict['eq_type_pest3']=8
 
     # Run GPEC resistive calculation
     rdcon_xr, stride_xr, rdcon_ran, stride_ran, rdcon_stride_input_dict = GPEC_resistive_calculation(
@@ -129,9 +137,13 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
         ascii_q_plotter(rdcon_xr)
 
     jgpec_xrs, jgpec_ran = {}, {}
-    if run_jgpec:
+    if run_jgpec and not rdcon_ran:  # jGPEC surfaces are aligned to RDCON's (as the MRE analysis needs RDCON)
+        print("WARNING: RDCON did not run; jGPEC is skipped.")
+        jgpec_xrs = {f'jGPEC_{s}': None for s in jgpec_solvers}
+        jgpec_ran = dict.fromkeys(jgpec_xrs, False)
+    elif run_jgpec:
         jgpec_xrs, jgpec_ran = run_jgpec_solvers(
-            eq_filename, nn, working_dir, rdcon_stride_input_dict, rdcon_xr if rdcon_ran else None,
+            eq_filename, nn, working_dir, rdcon_stride_input_dict, rdcon_xr,
             solvers=jgpec_solvers, threads=jgpec_threads, timeout=jgpec_timeout, output_location=output_location,
             output_prefix=output_prefix, override_save=override_save, verbose=verbose, **jgpec_kwargs)
 
@@ -207,41 +219,41 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
     if verbose: print("Truncation values: psilow", psilow_actual,"qlim", qlim_actual)
 
     # Check for explicit pest inputs, else use the values from rdcon_stride_input_dict:
-    if ('kband_pest' not in pest3_kwargs_dict) and m_absmax>0:
-        pest3_kwargs_dict['kband_pest'] = m_absmax
+    if ('kband_pest3' not in pest3_kwargs_dict) and m_absmax>0:
+        pest3_kwargs_dict['kband_pest3'] = m_absmax
 
-    if 'psilow_pest' not in pest3_kwargs_dict:
-        pest3_kwargs_dict['psilow_pest'] = rdcon_stride_input_dict['psilow']
+    if 'psilow_pest3' not in pest3_kwargs_dict:
+        pest3_kwargs_dict['psilow_pest3'] = rdcon_stride_input_dict['psilow']
 
-    if 'psihigh_pest' not in pest3_kwargs_dict:
-        pest3_kwargs_dict['psihigh_pest'] = rdcon_stride_input_dict['psihigh']
+    if 'psihigh_pest3' not in pest3_kwargs_dict:
+        pest3_kwargs_dict['psihigh_pest3'] = rdcon_stride_input_dict['psihigh']
         allow_trunc_loop=True
     else:
-        if verbose: print("Using user defined PEST3 truncation value psihigh_pest = ", pest3_kwargs_dict['psihigh_pest'])
-        allow_trunc_loop=False #If you enter psihigh_pest, will override automatic truncation loop
+        if verbose: print("Using user defined PEST3 truncation value psihigh_pest3 = ", pest3_kwargs_dict['psihigh_pest3'])
+        allow_trunc_loop=False #If you enter psihigh_pest3, will override automatic truncation loop
 
-    gpec_vacuum_pest = pest3_kwargs_dict.get('vacuum_source_pest', 'gpec') == 'gpec'
-    if 'a_wall_pest' not in pest3_kwargs_dict:
-        pest3_kwargs_dict['a_wall_pest'] = rdcon_stride_input_dict['a_wall']
-        if gpec_vacuum_pest and rdcon_stride_input_dict['vac_flag']=='t' and pest3_kwargs_dict['a_wall_pest'] <= 0:
-            pest3_kwargs_dict['a_wall_pest'] = 1 # a_wall_pest > 0 turns the vacuum on; the wall comes from vac.in
-        if not gpec_vacuum_pest and rdcon_stride_input_dict['ishape']!=6 and rdcon_stride_input_dict['vac_flag']=='t':
+    gpec_vacuum_pest3 = pest3_kwargs_dict.get('vacuum_source_pest3', 'gpec') == 'gpec'
+    if 'a_wall_pest3' not in pest3_kwargs_dict:
+        pest3_kwargs_dict['a_wall_pest3'] = rdcon_stride_input_dict['a_wall']
+        if gpec_vacuum_pest3 and rdcon_stride_input_dict['vac_flag']=='t' and pest3_kwargs_dict['a_wall_pest3'] <= 0:
+            pest3_kwargs_dict['a_wall_pest3'] = 1 # a_wall_pest3 > 0 turns the vacuum on; the wall comes from vac.in
+        if not gpec_vacuum_pest3 and rdcon_stride_input_dict['ishape']!=6 and rdcon_stride_input_dict['vac_flag']=='t':
             print("WARNING: PEST3 cannot replicate GPEC's wall shape - calculation will differ.")
 
-    if 'mthvac_pest' not in pest3_kwargs_dict:
-        pest3_kwargs_dict['mthvac_pest'] = rdcon_stride_input_dict['mthvac']
+    if 'mthvac_pest3' not in pest3_kwargs_dict:
+        pest3_kwargs_dict['mthvac_pest3'] = rdcon_stride_input_dict['mthvac']
 
-    if ('mtheta_pest' not in pest3_kwargs_dict) and pest_pull_mtheta:
-        pest3_kwargs_dict['mtheta_pest'] = rdcon_stride_input_dict['mtheta']
+    if ('mtheta_pest3' not in pest3_kwargs_dict) and pull_mtheta_pest3:
+        pest3_kwargs_dict['mtheta_pest3'] = rdcon_stride_input_dict['mtheta']
 
-    if 'mpsi_pest' not in pest3_kwargs_dict:
-        pest3_kwargs_dict['mpsi_pest'] = rdcon_stride_input_dict['mpsi']
+    if 'mpsi_pest3' not in pest3_kwargs_dict:
+        pest3_kwargs_dict['mpsi_pest3'] = rdcon_stride_input_dict['mpsi']
 
-    if 'rational_surface_control_pest' not in pest3_kwargs_dict:
+    if 'rational_surface_control_pest3' not in pest3_kwargs_dict:
         if num_rat_surfaces > 15:
-            pest3_kwargs_dict['rational_surface_control_pest'] = '''-m"''' + 'x'*num_rat_surfaces + '''"''' # Compute Delta's for first num_rat_surfaces rational surfaces
+            pest3_kwargs_dict['rational_surface_control_pest3'] = '''-m"''' + 'x'*num_rat_surfaces + '''"''' # Compute Delta's for first num_rat_surfaces rational surfaces
         if num_rat_surfaces == 0 and nn*5 < 15: # Large n, don't forget to include all these rational surfaces
-            pest3_kwargs_dict['rational_surface_control_pest'] = '''-m"''' + 'x'*nn*5 + '''"'''
+            pest3_kwargs_dict['rational_surface_control_pest3'] = '''-m"''' + 'x'*nn*5 + '''"'''
 
     #########################################################################################################
     # Run PEST3 resistive calculation:
@@ -250,12 +262,12 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
     if run_pest3:
         pest3_trunc_ran = False
         try:
-            if pest_match_truncation and ((run_rdcon and rdcon_ran) or (run_stride and stride_ran)) and allow_trunc_loop:
+            if match_truncation_pest3 and ((run_rdcon and rdcon_ran) or (run_stride and stride_ran)) and allow_trunc_loop:
                 if verbose: print("Running pest3 truncation algorithm. qlim_actual = ", qlim_actual)
                 if psilow_actual > rdcon_stride_input_dict['psilow'] and (psilow_actual != 100):
                     print("WARNING: axis truncation in RDCON/STRIDE differs from PEST3 truncation. Results may not be comparable.")
                 if qlim_actual > -100:
-                    psihigh_trunc_pest, pest3_trunc_ran = pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dict,
+                    psihigh_trunc_pest3, pest3_trunc_ran = pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dict,
                         make_working_dir=make_working_dir,
                         working_dir=working_dir,
                         pest3_dir=pest3_dir,
@@ -267,7 +279,7 @@ def run_resistive_calculation(eq_filename, nn, run_rdcon=True, run_stride=True, 
                         save_terminal_output=save_terminal_output,
                     )
                     if pest3_trunc_ran:
-                        pest3_kwargs_dict['psihigh_pest'] = psihigh_trunc_pest
+                        pest3_kwargs_dict['psihigh_pest3'] = psihigh_trunc_pest3
         except Exception as e:
             print(f"WARNING: PEST3 truncation loop failed: {e}")
 

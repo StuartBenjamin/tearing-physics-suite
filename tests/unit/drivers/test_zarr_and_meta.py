@@ -43,3 +43,16 @@ def test_meta_dict_to_dataset():
     assert ds.chi_perp_spline.dims == ('run_idx', 'chi_perp_spline_knot')
     np.testing.assert_allclose(ds.chi_perp_spline_knot_x.squeeze().values, x[:6])  # stored per run
     np.testing.assert_allclose(ds.chi_perp_spline.squeeze().values, x[:6] ** 2)
+
+
+def test_string_vars_stored_as_variable_length(tmp_path):
+    # fixed-length '<U' strings have no stable zarr v3 spec; the store gets variable-length strings, same values
+    import warnings
+
+    from tearing_physics_suite.drivers.zarr_store import add_to_zarr_store
+    ds = xr.Dataset({'label': ('code', np.array(['ab', 'cde']))}, coords={'code': np.array(['rdcon', 'stride'])})
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', FutureWarning)
+        assert add_to_zarr_store(ds.assign_coords(run_idx=0), str(tmp_path / 's.zarr'), 'run_idx')
+    out = xr.open_zarr(tmp_path / 's.zarr').load()
+    assert out.label.values.tolist() == [['ab', 'cde']] and out.code.values.tolist() == ['rdcon', 'stride']

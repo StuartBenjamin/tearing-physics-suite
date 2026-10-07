@@ -5,6 +5,7 @@ import os
 import pickle as pkl
 import shutil
 import subprocess
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -24,36 +25,49 @@ def pest3_has_gpec_vacuum(pest3_executable):
     return _gpec_vac_built[key]
 
 
-def pest3_vacuum_flag(vacuum_source_pest, a_wall_pest, mthvac_pest):
-    """' -V<mthvac_pest>' for GPEC's VACUUM, else '' (PEST3's own vacuum, or a_wall_pest <= 0: wall on plasma)."""
-    if vacuum_source_pest not in ('gpec', 'pest3'):
-        raise ValueError(f"vacuum_source_pest must be 'gpec' or 'pest3', not {vacuum_source_pest!r}")
-    return ' -V' + str(mthvac_pest) if vacuum_source_pest == 'gpec' and a_wall_pest > 0 else ''
+# Old PEST3 kwarg names (before the *_pest3 suffix, META_PLAN §1.7); any other '<name>_pest' -> '<name>_pest3'
+_RENAMED_PEST3_KWARGS = {'pest_match_truncation': 'match_truncation_pest3', 'pest_pull_mtheta': 'pull_mtheta_pest3'}
 
 
-def build_pest3_command(eq_filename, nn, eq_type_pest, a_wall_pest, vacuum_string_pest, kband_pest,
-                        rational_surface_control_pest, psilow_pest, mtheta_pest, mpsi_pest, psihigh_pest,
-                        nx_string_pest, large_sol_extent_pest, solver_pest, terminal_output_control='',
-                        extra_input_string_pest=''):
+def rename_deprecated_pest3_kwargs(kwargs):
+    """Rename old '*_pest' kwargs in place to '*_pest3', with a FutureWarning; the new name wins if both are given."""
+    for old in [k for k in kwargs if k.endswith('_pest') or k in _RENAMED_PEST3_KWARGS]:
+        new = _RENAMED_PEST3_KWARGS.get(old, old + '3')
+        warnings.warn(f"'{old}' is deprecated; use '{new}'.", FutureWarning, stacklevel=3)
+        kwargs.setdefault(new, kwargs.pop(old))
+    return kwargs
+
+
+def pest3_vacuum_flag(vacuum_source_pest3, a_wall_pest3, mthvac_pest3):
+    """' -V<mthvac_pest3>' for GPEC's VACUUM, else '' (PEST3's own vacuum, or a_wall_pest3 <= 0: wall on plasma)."""
+    if vacuum_source_pest3 not in ('gpec', 'pest3'):
+        raise ValueError(f"vacuum_source_pest3 must be 'gpec' or 'pest3', not {vacuum_source_pest3!r}")
+    return ' -V' + str(mthvac_pest3) if vacuum_source_pest3 == 'gpec' and a_wall_pest3 > 0 else ''
+
+
+def build_pest3_command(eq_filename, nn, eq_type_pest3, a_wall_pest3, vacuum_string_pest3, kband_pest3,
+                        rational_surface_control_pest3, psilow_pest3, mtheta_pest3, mpsi_pest3, psihigh_pest3,
+                        nx_string_pest3, large_sol_extent_pest3, solver_pest3, terminal_output_control='',
+                        extra_input_string_pest3=''):
     """The pest3x command line run by PEST3_resistive_calculation (in its working directory)."""
-    return str('./pest3x -i' + str(eq_type_pest)
+    return str('./pest3x -i' + str(eq_type_pest3)
                         + ' -f' + eq_filename
                         + ' -n' + str(nn)
-                        + ' -b' + str(a_wall_pest)
-                        + vacuum_string_pest
-                        + ' -l' + str(kband_pest)
-                        + ' ' + rational_surface_control_pest
-                        + ' -a' + str(psilow_pest)
-                        + ' -P' + str(mtheta_pest)
-                        + ' -R' + str(mpsi_pest)
-                        + ' -E' + str(psihigh_pest)
-                        + ' ' + nx_string_pest
-                        + ' -d' + str(large_sol_extent_pest)
-                        + ' -s' + str(solver_pest)
+                        + ' -b' + str(a_wall_pest3)
+                        + vacuum_string_pest3
+                        + ' -l' + str(kband_pest3)
+                        + ' ' + rational_surface_control_pest3
+                        + ' -a' + str(psilow_pest3)
+                        + ' -P' + str(mtheta_pest3)
+                        + ' -R' + str(mpsi_pest3)
+                        + ' -E' + str(psihigh_pest3)
+                        + ' ' + nx_string_pest3
+                        + ' -d' + str(large_sol_extent_pest3)
+                        + ' -s' + str(solver_pest3)
                         + ' -x0'
                         + ' -a0.001'
                         + ' ' + terminal_output_control
-                        + ' ' + extra_input_string_pest)
+                        + ' ' + extra_input_string_pest3)
 
 
 def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_results_dir=True,
@@ -72,21 +86,21 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
         r_prime=None,
         clean_netcdf=True, #Always keep on unless running truncation loop
         # PEST3 specific parameters:
-        eq_type_pest=3,             # 3 = efit eqdsk, see pest3_dir/pest3.hh for other options
-        kband_pest=14,              # Poloidal Fourier modes span -|kband_pest|,...+|kband_pest|
-        rational_surface_control_pest='''-m"xxxxxxxxxxxxxxx"''', # String to control the computation of rational surfaces. Use 'xxxxxxxxxx' to compute Delta's for first 10 rational surfaces. Use '.' symbol to skip a rational surface.
-        psilow_pest=1e-4,
-        psihigh_pest=0.995,         # This behaves differently from the GPEC psihigh
-        a_wall_pest=20,             # Distance of the conformal ideal wall from the plasma in units of minor radius. a_wall_pest > 10 <=> wall at infinity, a_wall_pest = 0 <=> internal mode only. See pest3.hh for more details. With vacuum_source_pest='gpec', any a_wall_pest > 0 just turns the vacuum on; the wall comes from vac.in.
-        vacuum_source_pest='gpec',  # 'gpec': GPEC's VACUUM (as DCON/STRIDE), wall from working_dir/vac.in. 'pest3': PEST3's own vacuum, conformal wall from a_wall_pest.
-        mthvac_pest=960,            # Theta points for GPEC's VACUUM (GPEC's mthvac).
-        mtheta_pest=129, #Must be odd # Number of poloidal rays for eqdsk mapping. Large values (~800) likely introduce numerical instabilities.
-        mpsi_pest=400,                   # Number of radial grid intervals for equilibrium quantities for eqdsk mapping. Large values (~800) likely introduce numerical instabilities.
-        nx_string_pest='''-k"100 50 80 140"''', # [Higher is not better!!! see pest3_finite_element_scan for more info] String for the number of radial finite elements per non-singular interval. Convergence should obey nx^(-2) going to zero, hence multiple values are specified. Use nxpest for a single value. Use even numbers!
-        nx_pest=0,                  # Must be even! Number of radial finite elements per non-singular interval.
-        large_sol_extent_pest=0.9, # See pest3_dir/pest3.hh for details.
-        solver_pest=0,             # String for the PEST3 solver options, see pest3_dir/pest3.hh for details.
-        extra_input_string_pest='',      # Extra input string to pass to PEST3, e.g. for additional control parameters. See pest3_dir/pest3.hh for details.
+        eq_type_pest3=3,             # 3 = efit eqdsk, see pest3_dir/pest3.hh for other options
+        kband_pest3=14,              # Poloidal Fourier modes span -|kband_pest3|,...+|kband_pest3|
+        rational_surface_control_pest3='''-m"xxxxxxxxxxxxxxx"''', # String to control the computation of rational surfaces. Use 'xxxxxxxxxx' to compute Delta's for first 10 rational surfaces. Use '.' symbol to skip a rational surface.
+        psilow_pest3=1e-4,
+        psihigh_pest3=0.995,         # This behaves differently from the GPEC psihigh
+        a_wall_pest3=20,             # Distance of the conformal ideal wall from the plasma in units of minor radius. a_wall_pest3 > 10 <=> wall at infinity, a_wall_pest3 = 0 <=> internal mode only. See pest3.hh for more details. With vacuum_source_pest3='gpec', any a_wall_pest3 > 0 just turns the vacuum on; the wall comes from vac.in.
+        vacuum_source_pest3='gpec',  # 'gpec': GPEC's VACUUM (as DCON/STRIDE), wall from working_dir/vac.in. 'pest3': PEST3's own vacuum, conformal wall from a_wall_pest3.
+        mthvac_pest3=960,            # Theta points for GPEC's VACUUM (GPEC's mthvac).
+        mtheta_pest3=129, #Must be odd # Number of poloidal rays for eqdsk mapping. Large values (~800) likely introduce numerical instabilities.
+        mpsi_pest3=400,                   # Number of radial grid intervals for equilibrium quantities for eqdsk mapping. Large values (~800) likely introduce numerical instabilities.
+        nx_string_pest3='''-k"100 50 80 140"''', # [Higher is not better!!! see pest3_finite_element_scan for more info] String for the number of radial finite elements per non-singular interval. Convergence should obey nx^(-2) going to zero, hence multiple values are specified. Use nxpest for a single value. Use even numbers!
+        nx_pest3=0,                  # Must be even! Number of radial finite elements per non-singular interval.
+        large_sol_extent_pest3=0.9, # See pest3_dir/pest3.hh for details.
+        solver_pest3=0,             # String for the PEST3 solver options, see pest3_dir/pest3.hh for details.
+        extra_input_string_pest3='',      # Extra input string to pass to PEST3, e.g. for additional control parameters. See pest3_dir/pest3.hh for details.
         ):
     """
     Run PEST3 resistive calculation by calling the PEST3 Fortran executable.
@@ -115,7 +129,7 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
     r, r_prime : np.ndarray or None
         Surface label coordinates (from GPEC) for dimension alignment.
     **PEST3-specific kwargs**
-        See inline comments for eq_type_pest, kband_pest, psihigh_pest, etc.
+        See inline comments for eq_type_pest3, kband_pest3, psihigh_pest3, etc.
 
     Returns
     -------
@@ -170,13 +184,13 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
     shutil.copy(pest3_executable, working_dir)
     assert os.path.isfile(working_dir+'/pest3x')
 
-    vacuum_string_pest = pest3_vacuum_flag(vacuum_source_pest, a_wall_pest, mthvac_pest)
-    if vacuum_string_pest:
+    vacuum_string_pest3 = pest3_vacuum_flag(vacuum_source_pest3, a_wall_pest3, mthvac_pest3)
+    if vacuum_string_pest3:
         if not pest3_has_gpec_vacuum(pest3_executable):
             raise RuntimeError(f"{pest3_executable} was built without GPEC vacuum. Rebuild PEST3 with "
-                               "gpec_vacuum=True, or pass vacuum_source_pest='pest3'.")
+                               "gpec_vacuum=True, or pass vacuum_source_pest3='pest3'.")
         if not os.path.isfile(os.path.join(working_dir, 'vac.in')):
-            raise FileNotFoundError(f"vacuum_source_pest='gpec' needs vac.in in {working_dir} (written by the GPEC run).")
+            raise FileNotFoundError(f"vacuum_source_pest3='gpec' needs vac.in in {working_dir} (written by the GPEC run).")
 
     # Check if equilibrium file exists
     if not os.path.exists(eq_filename):
@@ -190,16 +204,16 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
     # Generate input string for PEST3:
     #########################################################################################################
 
-    if nx_pest != 0:
-        #Check if nx_pest is odd, if so, raise by 1
-        if nx_pest % 2 != 0:
-            if verbose: print(f"nx_pest {nx_pest} is odd, raising by 1 to {nx_pest + 1}")
-            nx_pest += 1
-        nx_string_pest = ' -k' + str(nx_pest)
+    if nx_pest3 != 0:
+        #Check if nx_pest3 is odd, if so, raise by 1
+        if nx_pest3 % 2 != 0:
+            if verbose: print(f"nx_pest3 {nx_pest3} is odd, raising by 1 to {nx_pest3 + 1}")
+            nx_pest3 += 1
+        nx_string_pest3 = ' -k' + str(nx_pest3)
 
-    if mtheta_pest % 2 == 0:
-        if verbose: print(f"mtheta_pest {mtheta_pest} is even, raising by 1 to {mtheta_pest + 1}")
-        mtheta_pest += 1
+    if mtheta_pest3 % 2 == 0:
+        if verbose: print(f"mtheta_pest3 {mtheta_pest3} is even, raising by 1 to {mtheta_pest3 + 1}")
+        mtheta_pest3 += 1
 
     terminal_output_file = 'pest3_terminal_output_n'+str(nn)+'.txt'
     if save_terminal_output:
@@ -211,10 +225,10 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
     else:
         terminal_output_control = ''
 
-    input_string = build_pest3_command(eq_filename, nn, eq_type_pest, a_wall_pest, vacuum_string_pest, kband_pest,
-                                       rational_surface_control_pest, psilow_pest, mtheta_pest, mpsi_pest,
-                                       psihigh_pest, nx_string_pest, large_sol_extent_pest, solver_pest,
-                                       terminal_output_control, extra_input_string_pest)
+    input_string = build_pest3_command(eq_filename, nn, eq_type_pest3, a_wall_pest3, vacuum_string_pest3, kband_pest3,
+                                       rational_surface_control_pest3, psilow_pest3, mtheta_pest3, mpsi_pest3,
+                                       psihigh_pest3, nx_string_pest3, large_sol_extent_pest3, solver_pest3,
+                                       terminal_output_control, extra_input_string_pest3)
 
     #########################################################################################################
     # Run PEST3:
@@ -236,23 +250,23 @@ def PEST3_resistive_calculation(eq_filename, nn, make_working_dir=True,make_resu
 
     pest3_input_dict = {
         'eq_filename': os.path.basename(eq_filename),
-        'eq_type_pest': eq_type_pest,
+        'eq_type_pest3': eq_type_pest3,
         'nn': nn,
-        'kband_pest': kband_pest,
-        'rational_surface_control_pest': rational_surface_control_pest,
-        'psilow_pest': psilow_pest,
-        'psihigh_pest': psihigh_pest,
-        'a_wall_pest': a_wall_pest,
-        'vacuum_source_pest': vacuum_source_pest if vacuum_string_pest else ('pest3' if a_wall_pest > 0 else 'none'),
-        'mthvac_pest': mthvac_pest,
-        'mtheta_pest': mtheta_pest,
-        'mpsi_pest': mpsi_pest,
-        'nx_string_pest': nx_string_pest,
-        'nx_pest': nx_pest,
-        'large_sol_extent_pest': large_sol_extent_pest,
-        'solver_pest': solver_pest,
+        'kband_pest3': kband_pest3,
+        'rational_surface_control_pest3': rational_surface_control_pest3,
+        'psilow_pest3': psilow_pest3,
+        'psihigh_pest3': psihigh_pest3,
+        'a_wall_pest3': a_wall_pest3,
+        'vacuum_source_pest3': vacuum_source_pest3 if vacuum_string_pest3 else ('pest3' if a_wall_pest3 > 0 else 'none'),
+        'mthvac_pest3': mthvac_pest3,
+        'mtheta_pest3': mtheta_pest3,
+        'mpsi_pest3': mpsi_pest3,
+        'nx_string_pest3': nx_string_pest3,
+        'nx_pest3': nx_pest3,
+        'large_sol_extent_pest3': large_sol_extent_pest3,
+        'solver_pest3': solver_pest3,
         'save_terminal_output': save_terminal_output,
-        'extra_input_string_pest': extra_input_string_pest
+        'extra_input_string_pest3': extra_input_string_pest3
     }
 
     #########################################################################################################
@@ -322,7 +336,7 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
     Find psihigh for PEST3 that matches the GPEC q-truncation point, using bisection.
 
     Runs fast, low-resolution PEST3 calculations to iteratively narrow the
-    psihigh_pest value until the output q-boundary matches qlim_actual.
+    psihigh_pest3 value until the output q-boundary matches qlim_actual.
 
     Parameters
     ----------
@@ -340,7 +354,7 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
     Returns
     -------
     psihigh : float
-        psihigh_pest value matching qlim_actual.
+        psihigh_pest3 value matching qlim_actual.
     success : bool
         Whether the truncation loop converged.
     """
@@ -362,14 +376,14 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
     output_prefix_special+='_truncloop_'
 
     # Setting up a very fast, basic pest run:
-    pest3_kwargs_dict_local['mpsi_pest'] = mpsi_trunc_loop
-    pest3_kwargs_dict_local['mtheta_pest'] = 129
-    pest3_kwargs_dict_local['kband_pest'] = 15
-    pest3_kwargs_dict_local['a_wall_pest'] = 0
-    pest3_kwargs_dict_local['psilow_pest'] = 0.0001
-    pest3_kwargs_dict_local['large_sol_extent_pest'] = 0.1
-    pest3_kwargs_dict_local['nx_pest'] = nx_trunc_loop
-    pest3_kwargs_dict_local['rational_surface_control_pest'] = '''-m"x"'''
+    pest3_kwargs_dict_local['mpsi_pest3'] = mpsi_trunc_loop
+    pest3_kwargs_dict_local['mtheta_pest3'] = 129
+    pest3_kwargs_dict_local['kband_pest3'] = 15
+    pest3_kwargs_dict_local['a_wall_pest3'] = 0
+    pest3_kwargs_dict_local['psilow_pest3'] = 0.0001
+    pest3_kwargs_dict_local['large_sol_extent_pest3'] = 0.1
+    pest3_kwargs_dict_local['nx_pest3'] = nx_trunc_loop
+    pest3_kwargs_dict_local['rational_surface_control_pest3'] = '''-m"x"'''
 
     # Combine pest3_kwargs_dict_local and kwargs
     pest3_kwargs_dict_local.update(kwargs)
@@ -377,7 +391,7 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
     psihigh_bounds = [psihigh_trunc_single,1.0]
 
     #Checking start:
-    pest3_kwargs_dict_local['psihigh_pest'] = psihigh_bounds[0]
+    pest3_kwargs_dict_local['psihigh_pest3'] = psihigh_bounds[0]
     pest3_xr, pest3_trunc_ran, pest3_input_dict = PEST3_resistive_calculation(
         eq_filename,
         1, # nn = 1 is fastest
@@ -390,12 +404,12 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
         print("PEST3 truncation run failed.")
         return 0, False
     if abs(pest3_xr['qa'].values[-1]-qlim_actual) < 0.01:
-        return pest3_kwargs_dict_local['psihigh_pest'], True
+        return pest3_kwargs_dict_local['psihigh_pest3'], True
     assert pest3_xr['qa'].values[-1] <= qlim_actual, "PEST3 initial run did not return a q value below qlim_actual. Check input parameters."
 
     #Bisection method:
     trunci=0
-    pest3_kwargs_dict_local['psihigh_pest'] = psihigh_bounds[0]+(psihigh_bounds[1]-psihigh_bounds[0])/2.0
+    pest3_kwargs_dict_local['psihigh_pest3'] = psihigh_bounds[0]+(psihigh_bounds[1]-psihigh_bounds[0])/2.0
 
     while trunci < truncimax:
         pest3_xr, pest3_trunc_ran, pest3_input_dict = PEST3_resistive_calculation(
@@ -413,19 +427,19 @@ def pest3_special_truncation_loop(eq_filename, nn, qlim_actual, pest3_kwargs_dic
             return 0, False
 
         if verbose:
-            print(f"PEST3 run {trunci}: psihigh_pest = {pest3_kwargs_dict_local['psihigh_pest']}, qlim_actual = {qlim_actual}, qa = {pest3_xr['qa'].values[-1]}")
+            print(f"PEST3 run {trunci}: psihigh_pest3 = {pest3_kwargs_dict_local['psihigh_pest3']}, qlim_actual = {qlim_actual}, qa = {pest3_xr['qa'].values[-1]}")
 
         if abs(pest3_xr['qa'].values[-1]-qlim_actual) < 0.01:
-            return pest3_kwargs_dict_local['psihigh_pest'], True
+            return pest3_kwargs_dict_local['psihigh_pest3'], True
         elif pest3_xr['qa'].values[-1] < qlim_actual:
-            psihigh_bounds[0] = pest3_kwargs_dict_local['psihigh_pest']
+            psihigh_bounds[0] = pest3_kwargs_dict_local['psihigh_pest3']
         else:
-            psihigh_bounds[1] = pest3_kwargs_dict_local['psihigh_pest']
-        pest3_kwargs_dict_local['psihigh_pest'] = psihigh_bounds[0]+(psihigh_bounds[1]-psihigh_bounds[0])/2.0
+            psihigh_bounds[1] = pest3_kwargs_dict_local['psihigh_pest3']
+        pest3_kwargs_dict_local['psihigh_pest3'] = psihigh_bounds[0]+(psihigh_bounds[1]-psihigh_bounds[0])/2.0
         trunci += 1
 
     # Not converged: return the last psihigh known to give qa < qlim_actual.
-    print(f"WARNING: PEST3 truncation loop did not converge in {truncimax} iterations (psihigh_pest bounds {psihigh_bounds}).")
+    print(f"WARNING: PEST3 truncation loop did not converge in {truncimax} iterations (psihigh_pest3 bounds {psihigh_bounds}).")
     return psihigh_bounds[0], False
 
 def pest3_special_truncation_single(eq_filename, nn, qlim_actual, pest3_kwargs_dict, output_prefix_special='',
@@ -452,7 +466,7 @@ def pest3_special_truncation_single(eq_filename, nn, qlim_actual, pest3_kwargs_d
     Returns
     -------
     psihigh : float
-        psihigh_pest value matching qlim_actual.
+        psihigh_pest3 value matching qlim_actual.
     success : bool
         Whether PEST3 ran and interpolation succeeded.
     """
@@ -462,15 +476,15 @@ def pest3_special_truncation_single(eq_filename, nn, qlim_actual, pest3_kwargs_d
     output_prefix_special+='_trunc_single_'
 
     # Setting up a high-res spline to get a good starting point
-    pest3_kwargs_dict_local['psihigh_pest'] = 1.0 #won't break pest (?)
-    pest3_kwargs_dict_local['mpsi_pest'] = mpsi_trunc
-    pest3_kwargs_dict_local['mtheta_pest'] = 129
-    pest3_kwargs_dict_local['kband_pest'] = 15
-    pest3_kwargs_dict_local['a_wall_pest'] = 0
-    pest3_kwargs_dict_local['psilow_pest'] = 0.0001
-    pest3_kwargs_dict_local['large_sol_extent_pest'] = 0.1
-    pest3_kwargs_dict_local['nx_pest'] = nx_trunc
-    pest3_kwargs_dict_local['rational_surface_control_pest'] = '''-m"."'''
+    pest3_kwargs_dict_local['psihigh_pest3'] = 1.0 #won't break pest (?)
+    pest3_kwargs_dict_local['mpsi_pest3'] = mpsi_trunc
+    pest3_kwargs_dict_local['mtheta_pest3'] = 129
+    pest3_kwargs_dict_local['kband_pest3'] = 15
+    pest3_kwargs_dict_local['a_wall_pest3'] = 0
+    pest3_kwargs_dict_local['psilow_pest3'] = 0.0001
+    pest3_kwargs_dict_local['large_sol_extent_pest3'] = 0.1
+    pest3_kwargs_dict_local['nx_pest3'] = nx_trunc
+    pest3_kwargs_dict_local['rational_surface_control_pest3'] = '''-m"."'''
 
     # Combine pest3_kwargs_dict_local and kwargs
     pest3_kwargs_dict_local.update(kwargs)
@@ -556,23 +570,23 @@ def pest3_clean_netcdf(ps3, debug=True, drop_soln_info=True, q_rationals=None, r
 
     #Names of dims:
     missing_m_from_gpec = []
-    missing_m_from_pest = []
+    missing_m_from_pest3 = []
     if len(ps3.cmatch.dims) > 0:
         surfdim=ps3.cmatch.dims[0]
         unknowndim=ps3.x1frbo_re.dims[1]
         if q_rationals is not None:
             # We convert q_rationals to m values:
             m_gpec = np.round(np.squeeze(q_rationals*ps3.n.values))
-            m_pest = np.round(np.squeeze(ps3.qslay.values*ps3.n.values))
+            m_pest3 = np.round(np.squeeze(ps3.qslay.values*ps3.n.values))
 
-            #Check no values in m_pest are missing from m_gpec:
-            missing_m_from_gpec = [m for m in m_pest if m not in m_gpec]
-            missing_m_from_pest = [m for m in m_gpec if m not in m_pest]
+            #Check no values in m_pest3 are missing from m_gpec:
+            missing_m_from_gpec = [m for m in m_pest3 if m not in m_gpec]
+            missing_m_from_pest3 = [m for m in m_gpec if m not in m_pest3]
 
             assert len(missing_m_from_gpec) == 0, "Some m values from GPEC are not in PEST3 output. Check truncation logic."
 
-            if len(missing_m_from_pest) > 0:
-                assert min(missing_m_from_pest) > max(m_pest), "Some interior m values from PEST3 are not in GPEC output. Check truncation logic."
+            if len(missing_m_from_pest3) > 0:
+                assert min(missing_m_from_pest3) > max(m_pest3), "Some interior m values from PEST3 are not in GPEC output. Check truncation logic."
     else: #No rational surfaces calculated
         surfdim=None
         unknowndim=ps3.x1frbo_re.dims[0]
@@ -613,7 +627,7 @@ def pest3_clean_netcdf(ps3, debug=True, drop_soln_info=True, q_rationals=None, r
 
     # Put the surfaces on GPEC's r, r_prime; PEST3's missing outer surfaces are NaN:
     ps3 = ps3.rename_dims(r_temp='r', r_prime_temp='r_prime')
-    if len(missing_m_from_pest) > 0:
+    if len(missing_m_from_pest3) > 0:
         ps3 = ps3.pad(r=(0, len(r) - ps3.sizes['r']), r_prime=(0, len(r_prime) - ps3.sizes['r_prime']))
     ps3 = ps3.assign_coords(r=r, r_prime=r_prime)
 

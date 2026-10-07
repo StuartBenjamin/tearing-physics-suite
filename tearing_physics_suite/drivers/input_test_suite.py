@@ -49,8 +49,8 @@ class ScanSpec:
 
 
 def _pest3_nx_name(vals):
-    """PEST3 grid input scanned: nx_string_pest for -k strings, else nx_pest."""
-    return 'nx_string_pest' if isinstance(vals[0], str) else 'nx_pest'
+    """PEST3 grid input scanned: nx_string_pest3 for -k strings, else nx_pest3."""
+    return 'nx_string_pest3' if isinstance(vals[0], str) else 'nx_pest3'
 
 
 _TRUNC_NOTE = ("Warning: it's likely the q-surface being truncated will jump by one over the course of this scan. "
@@ -86,9 +86,9 @@ _SPECS = [
              'equilibrium_integrator_tolerance_scan', 'Equilibrium integrator tolerance scan results:', fixed=dict(**NO_PEST, **WALL)),
     # Varying mtheta:
     ScanSpec('mtheta_scan', 'mtheta', [129, 130, 257, 513], [70, 90, 129, 257, 513, 1025], 'mtheta_scan',
-             'mtheta scan results:', fixed=dict(**WALL, pest_pull_mtheta=True)),
+             'mtheta scan results:', fixed=dict(**WALL, pull_mtheta_pest3=True)),
     ScanSpec('mtheta_scan_no_wall', 'mtheta', [129, 130, 257, 513], [70, 90, 129, 257, 513, 1025], 'mtheta_scan',
-             'mtheta scan results (no wall):', fixed=dict(**NO_WALL, pest_pull_mtheta=True), prefix='no_wall_'),
+             'mtheta scan results (no wall):', fixed=dict(**NO_WALL, pull_mtheta_pest3=True), prefix='no_wall_'),
     # Varying mpsi:
     ScanSpec('mpsi_scan', 'mpsi', [257, 258, 513], [70, 90, 129, 257, 513, 1025], 'mpsi_scan', 'mpsi scan results:',
              fixed=WALL),
@@ -107,10 +107,10 @@ _SPECS = [
     ScanSpec('rdcon_finite_element_scan', 'nx', [257, 128], [60, 70, 80, 90, 100, 120, 257, 512], 'nx_rdcon_scan',
              'RDCON finite element scan results:', fixed=dict(**RDCON_ONLY, **WALL)),
     # Varying number of finite elements: PEST3.
-    # The correct Delta prime value is calculated from extrapolating a straight line in nx_pest^(-2) to nx_pest = infinity (nx_pest^(-2) = 0).
-    # HOWEVER, above a certain value of nx_pest (~ > 140 < 200), the Delta prime values no longer obey a straight
-    # line relationship w.r.t nx_pest^(-2). (Higher res. equilibria push this point to higher nx_pest values - Dylan Brennan). You want
-    # to use values of nx_pest that are below this point to ensure convergence is correctly calculated.
+    # The correct Delta prime value is calculated from extrapolating a straight line in nx_pest3^(-2) to nx_pest3 = infinity (nx_pest3^(-2) = 0).
+    # HOWEVER, above a certain value of nx_pest3 (~ > 140 < 200), the Delta prime values no longer obey a straight
+    # line relationship w.r.t nx_pest3^(-2). (Higher res. equilibria push this point to higher nx_pest3 values - Dylan Brennan). You want
+    # to use values of nx_pest3 that are below this point to ensure convergence is correctly calculated.
     ScanSpec('pest3_finite_element_scan', _pest3_nx_name,
              ['-k"100 50 80 140"', '-k"90 46 70 130"', '-k"70 30 50 100"'],
              [30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200, 225, 257, 300, 400, 512], 'nx_pest3_scan',
@@ -142,10 +142,10 @@ _SPECS = [
     ScanSpec('STRIDE_axis_mid_pt_skew_scan', 'axis_mid_pt_skew', [11.0, 12.0, 13.0],
              [2.0, 4.0, 8.0, 10.0, 12.0, 14.0, 18.0, 20.0], 'STRIDE_axis_mid_pt_skew_scan',
              'STRIDE axis_mid_pt_skew scan results:', fixed=dict(**WALL, **NO_PEST, run_rdcon=False)),
-    # large_sol_extent_pest
-    ScanSpec('large_sol_extent_pest_scan', 'large_sol_extent_pest', [0.8, 0.9],
+    # large_sol_extent_pest3
+    ScanSpec('large_sol_extent_pest_scan', 'large_sol_extent_pest3', [0.8, 0.9],
              [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95], 'large_sol_extent_pest_scan',
-             'PEST3 large_sol_extent_pest scan results:',
+             'PEST3 large_sol_extent_pest3 scan results:',
              fixed=dict(**WALL, run_pest3=True, run_stride=False, run_rdcon=True, gal_flag='f', ode_flag='f')),
     # Varying nq:
     ScanSpec('RDCON_nq_scan', 'nq', [5, 6], list(range(1, 8)), 'RDCON_nq_scan', 'RDCON nq scan results:',

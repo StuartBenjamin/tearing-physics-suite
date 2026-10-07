@@ -51,7 +51,7 @@ def case_nonlinear_wall_rotation(f, wd):
     return f['nonlinear'](EQ, *spl, omega_splines=p['omega_splines'], Er_spline=None,
                           q_surfs_of_interest=[1.5, 2.0], psi_surfs_of_interest=[0.3, 0.95],
                           nvec=[1, 2], run_stride=True, run_pest3=True, vac_flag='f', ode_flag='f',
-                          wd_static=True, pest_match_truncation=False, working_dir=wd,
+                          wd_static=True, match_truncation_pest3=False, working_dir=wd,
                           **MRE, **REDUCED)
 
 

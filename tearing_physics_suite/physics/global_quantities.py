@@ -203,7 +203,7 @@ def add_comparison_across_var(xarray, Delta_prime_surf, comparison_var,override_
     return xarray
 
 
-def add_bool_checks(xarray, comparison_var, abs_threshold, rel_threshold, Delta_prime_type='single helicity',drop_pest=False):
+def add_bool_checks(xarray, comparison_var, abs_threshold, rel_threshold, Delta_prime_type='single helicity',drop_pest3=False):
     """Check whether Delta' differences across comparison_var exceed thresholds.
 
     Tests both all modes and modes within psi_n < 0.95.
@@ -242,7 +242,7 @@ def add_bool_checks(xarray, comparison_var, abs_threshold, rel_threshold, Delta_
     # Optional: drop pest3 from the boolean checks, since it's expected to differ more and is less relevant for input scans.
     #########################################################################################################
 
-    if drop_pest and 'pest3' in xarray.code.values:
+    if drop_pest3 and 'pest3' in xarray.code.values:
         abs_thresh_exceeded_da = abs_thresh_exceeded_da.where(xarray.code != 'pest3', drop=True)
         rel_thresh_exceeded_da = rel_thresh_exceeded_da.where(xarray.code != 'pest3', drop=True)
         abs_thresh_exceeded_within_q95 = abs_thresh_exceeded_within_q95.where(xarray.code != 'pest3', drop=True)

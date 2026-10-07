@@ -14,6 +14,7 @@ import xarray as xr
 
 from tearing_physics_suite.drivers.input_test_suite import SCANS, run_spec, spot_check_tests
 from tearing_physics_suite.drivers.pipeline import analyse_with_mre, nonlinear_resistive_calculation
+from tearing_physics_suite.drivers.zarr_store import vlen_strings
 from tearing_physics_suite.wrappers.run_codes import run_resistive_calculation
 
 SPOT_DIR = 'spot_checks'
@@ -186,7 +187,7 @@ def compile_spot_checks(master_working_dir, verbose=True):
         'rel_exceeded_psi95': -1, 'abs_exceeded_psi95': -1})
     ds = ds.assign_coords(code=codes)
     path = os.path.join(spot_dir(master_working_dir), 'spot_checks.zarr')
-    ds.to_zarr(path, mode='w', consolidated=True)
+    vlen_strings(ds).to_zarr(path, mode='w', consolidated=True)
     report = spot_report(ds, results, master_working_dir)
     with open(os.path.join(spot_dir(master_working_dir), 'report.txt'), 'w') as f:
         f.write(report)

@@ -1917,7 +1917,7 @@
  "large_sol_extent_pest_scan|debug_kwarg": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      0.8,
      0.9
@@ -1944,7 +1944,7 @@
  "large_sol_extent_pest_scan|extra_kwarg": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      0.8,
      0.9
@@ -1971,7 +1971,7 @@
  "large_sol_extent_pest_scan|full": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      0.05,
      0.1,
@@ -2005,7 +2005,7 @@
  "large_sol_extent_pest_scan|prefix": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      0.8,
      0.9
@@ -2031,7 +2031,7 @@
  "large_sol_extent_pest_scan|quick": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      0.8,
      0.9
@@ -2056,7 +2056,7 @@
  "large_sol_extent_pest_scan|scan_vals": {
   "call": [
    [
-    "large_sol_extent_pest",
+    "large_sol_extent_pest3",
     [
      1,
      2
@@ -2635,7 +2635,7 @@
     "debug": true,
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2661,7 +2661,7 @@
     "nx_extra": 64,
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2688,7 +2688,7 @@
    {
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2712,7 +2712,7 @@
    {
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2737,7 +2737,7 @@
    {
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2759,7 +2759,7 @@
    {
     "output_location": "RES/1D_scans/mtheta_scan",
     "output_prefix": "no_wall_",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "t"
    }
   ],
@@ -2786,7 +2786,7 @@
    {
     "debug": true,
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2811,7 +2811,7 @@
    {
     "nx_extra": 64,
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2837,7 +2837,7 @@
    ],
    {
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2860,7 +2860,7 @@
    ],
    {
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2884,7 +2884,7 @@
    ],
    {
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2905,7 +2905,7 @@
    ],
    {
     "output_location": "RES/1D_scans/mtheta_scan",
-    "pest_pull_mtheta": true,
+    "pull_mtheta_pest3": true,
     "vac_flag": "f"
    }
   ],
@@ -2919,7 +2919,7 @@
  "pest3_finite_element_scan|debug_kwarg": {
   "call": [
    [
-    "nx_string_pest",
+    "nx_string_pest3",
     [
      "-k\"100 50 80 140\"",
      "-k\"90 46 70 130\"",
@@ -2946,7 +2946,7 @@
  "pest3_finite_element_scan|extra_kwarg": {
   "call": [
    [
-    "nx_string_pest",
+    "nx_string_pest3",
     [
      "-k\"100 50 80 140\"",
      "-k\"90 46 70 130\"",
@@ -2974,7 +2974,7 @@
  "pest3_finite_element_scan|full": {
   "call": [
    [
-    "nx_pest",
+    "nx_pest3",
     [
      30,
      40,
@@ -3015,7 +3015,7 @@
  "pest3_finite_element_scan|pest3_debug_full": {
   "call": [
    [
-    "nx_pest",
+    "nx_pest3",
     [
      30,
      40,
@@ -3057,7 +3057,7 @@
  "pest3_finite_element_scan|pest3_str_vals": {
   "call": [
    [
-    "nx_string_pest",
+    "nx_string_pest3",
     [
      "-k\"1\""
     ],
@@ -3083,7 +3083,7 @@
  "pest3_finite_element_scan|prefix": {
   "call": [
    [
-    "nx_string_pest",
+    "nx_string_pest3",
     [
      "-k\"100 50 80 140\"",
      "-k\"90 46 70 130\"",
@@ -3110,7 +3110,7 @@
  "pest3_finite_element_scan|quick": {
   "call": [
    [
-    "nx_string_pest",
+    "nx_string_pest3",
     [
      "-k\"100 50 80 140\"",
      "-k\"90 46 70 130\"",
@@ -3136,7 +3136,7 @@
  "pest3_finite_element_scan|scan_vals": {
   "call": [
    [
-    "nx_pest",
+    "nx_pest3",
     [
      1,
      2

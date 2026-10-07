@@ -11,8 +11,8 @@ from tearing_physics_suite.wrappers.pest3 import pest3_special_truncation_loop
 from tearing_physics_suite.wrappers.run_codes import run_resistive_calculation
 
 pytestmark = pytest.mark.fortran
-COMMON = dict(run_rdcon=True, run_stride=True, run_pest3=True, etol=1e-10, mpsi_pest=400, kband_pest=15,
-              gal_flag='t', ode_flag='t', save_input=True, nx_string_pest='''-k"100 70 140 50 120"''')
+COMMON = dict(run_rdcon=True, run_stride=True, run_pest3=True, etol=1e-10, mpsi_pest3=400, kband_pest3=15,
+              gal_flag='t', ode_flag='t', save_input=True, nx_string_pest3='''-k"100 70 140 50 120"''')
 
 
 def _dp21(ds):
@@ -24,7 +24,7 @@ def wall_run(tmp_path_factory, eq_file):
     d = tmp_path_factory.mktemp('wall')
     out = run_resistive_calculation(eq_file, 1, working_dir=str(d / 'work'), vac_flag='f',
                                     output_location=str(d), output_prefix='test_1',
-                                    pest_match_truncation=True, **COMMON)
+                                    match_truncation_pest3=True, **COMMON)
     return d, out
 
 
@@ -38,7 +38,7 @@ def nowall_run(tmp_path_factory, eq_file):
 
 def test_pest3_truncation_loop(eq_file, tmp_path):
     os.chdir(tmp_path)
-    _, ran = pest3_special_truncation_loop(eq_file, 1, 5.2, {'psihigh_pest': 1}, debug=True,
+    _, ran = pest3_special_truncation_loop(eq_file, 1, 5.2, {'psihigh_pest3': 1}, debug=True,
                                            output_prefix_special='trunctest1')
     assert ran
 

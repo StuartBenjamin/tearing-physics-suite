@@ -249,7 +249,7 @@ SHARED_KEYS = (
 RDCON_KEYS = (
     'nx', 'pfac', 'gal_tol', 'dx1dx2_flag', 'dx0', 'dx1', 'dx2', 'cutoff', 'solver', 'nq', 'interp_np',
     'restore_uh', 'restore_us', 'restore_ul', 'bin_delmatch', 'out_galsol', 'bin_galsol', 'b_flag', 'bin_coilsol',
-    'ode_flag', 'dump_MRE_data', 'reform_eq_with_psilim', 'sing_start', 'sing1_flag', 'gal_xmin_flag',
+    'ode_flag', 'reform_eq_with_psilim', 'sing_start', 'sing1_flag', 'gal_xmin_flag',
     'sing_order_ceiling', 'regrid_flag', 'Zeff', 'MRE_flag', 'geom_flag', 'flag', 'phase',
 )
 STRIDE_KEYS = (
@@ -321,7 +321,6 @@ def write_rdcon_stride_inputs(working_dir,eq_filename,write_equil_filename='/equ
             bin_coilsol='f',        # Output binary files for every unit-m driven solution
             ##RDCON_CONTROL
             ode_flag='t',           # RDCON control only (forced true for STRIDE) - Integrate ODEs for determining stability of internal long-wavelength mode.
-            dump_MRE_data=False,    # Dump MRE data, exits before gal_flag can run
             reform_eq_with_psilim='t', # Reform the equilibrium with the specified psi limits
             sing_start=0,           # Start integration at the sing_start'th rational from the axis (psilow)
             sing1_flag='t',         # Special power series treatment
@@ -406,7 +405,7 @@ def write_rdcon_stride_inputs(working_dir,eq_filename,write_equil_filename='/equ
         vac_flag='f'
     if vac_flag=='f':
         calc_dp_with_vac = 'f' # If vac_flag is false, then calc_dp_with_vac must be false
-        a_wall = 0.0 # If vac_flag is false, then a_wall must be zero. This'll automatically set a_wall_pest to 0 too.
+        a_wall = 0.0 # If vac_flag is false, then a_wall must be zero. This'll automatically set a_wall_pest3 to 0 too.
     if nx % 2 != 0:
         if verbose: print("Warning: nx is not even, increasing by 1 to make it even.")
         nx += 1
@@ -451,7 +450,6 @@ def write_rdcon_stride_inputs(working_dir,eq_filename,write_equil_filename='/equ
         'ode_flag': ode_flag,
         'vac_flag': vac_flag,
         'gal_flag': gal_flag,
-        'dump_MRE_data': dump_MRE_data,
         'sas_flag': sas_flag,
         'reform_eq_with_psilim': reform_eq_with_psilim,
         'dmlim': dmlim,
@@ -537,7 +535,7 @@ def write_rdcon_stride_inputs(working_dir,eq_filename,write_equil_filename='/equ
 
 def write_rdcon_in(path, *, nx, pfac, gal_tol, dx1dx2_flag, dx0, dx1, dx2, cutoff, solver, nq, interp_np, restore_uh,
                    restore_us, restore_ul, bin_delmatch, out_galsol, bin_galsol, b_flag, bin_coilsol, bal_flag,
-                   mat_flag, ode_flag, vac_flag, gal_flag, dump_MRE_data, sas_flag, reform_eq_with_psilim, dmlim,
+                   mat_flag, ode_flag, vac_flag, gal_flag, sas_flag, reform_eq_with_psilim, dmlim,
                    sing_start, qlow, qhigh, nn, delta_mlow, delta_mhigh, delta_mband, mthvac, thmax0, tol_nr, tol_r,
                    crossover, singfac_min, ucrit, cyl_flag, sing1_flag, gal_xmin_flag, sing_order, sing_order_ceiling,
                    regrid_flag, Zeff, crit_break, ahb_flag, msol_ahb, mthsurf0, bin_euler, euler_stride, out_bal1,
@@ -576,8 +574,6 @@ def write_rdcon_in(path, *, nx, pfac, gal_tol, dx1dx2_flag, dx0, dx1, dx2, cutof
     f.write('    ode_flag='+ode_flag +'\n') #Integrate ODEs for determining stability of internal long-wavelength mode (must be true for GPEC)
     f.write('    vac_flag='+vac_flag +'\n') #Compute plasma, vacuum, and total energies for free-boundary modes
     f.write('    gal_flag='+gal_flag +'\n') #Compute outer regime using resonant Galerkin method
-    if not dump_MRE_data==False:  # noqa: E712 (dump_MRE_data may be a string)
-        f.write('    dump_MRE_data='+dump_MRE_data +'\n') #Dump MRE data, exits before gal_flag can run
 
     f.write('    sas_flag='+sas_flag +'\n') #Safety factor (q) limit determined as q_ir+dmlim where q_ir is the equil outermost rational
     f.write('    reform_eq_with_psilim='+reform_eq_with_psilim +'\n') #Reform the equilibrium with the specified psi limits
