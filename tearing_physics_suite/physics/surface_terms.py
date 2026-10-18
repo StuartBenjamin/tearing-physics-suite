@@ -414,7 +414,8 @@ def deltaprime_crit_on_modes(rdcon_xarray, force_lmfp=False):
 
     Implements two formulations:
     1. Glasser, Greene & Johnson, Phys. Fluids 1975, Eq. 111
-    2. Connor, Ham, Hastie & Liu, PPCF 57 065001 (2015), Eq. 59
+    2. Connor, Ham, Hastie & Liu, PPCF 57 065001 (2015), Eq. 59; Delta_prime_tcrit_slayer with the chi_para of
+       Julia GPEC's SLAYER (dc_type=:toroidal)
 
     Both give Delta' in GGJ's Y = (V - V_0)/V_s (V_0 the surface, V_s an arbitrary scale); it is returned per psi_n,
     as RDCON's Delta' (sing_get_ua), i.e. times (V'/V_s)^(1-2H), so V_s cancels. X0_surf is in psi_n.
@@ -448,6 +449,8 @@ def deltaprime_crit_on_modes(rdcon_xarray, force_lmfp=False):
     chi_perp_surf = rdcon_xarray['chi_perp_surf'].values
     chi_para_smfp_surf = rdcon_xarray['chi_para_smfp_surf'].values
     chi_para_lmfp_noisland_surf = rdcon_xarray['chi_para_lmfp_noisland_surf'].values
+    chi_para_lmfp_no_w_surf = rdcon_xarray['chi_para_lmfp_no_w_surf'].values
+    Wc_prefac_m_surf = rdcon_xarray['Wc_prefac_m_surf'].values
     psio = rdcon_xarray.psio
     n = rdcon_xarray.n
 
@@ -459,6 +462,7 @@ def deltaprime_crit_on_modes(rdcon_xarray, force_lmfp=False):
     DeltaPrimeCrits75_no_X0 = np.full_like(Hs, np.nan)
     DeltaPrimeCrits15 = np.full_like(Hs, np.nan)
     DeltaPrimeCrits15_no_chifrac = np.full_like(Hs, np.nan)
+    DeltaPrimeCrits15_slayer = np.full_like(Hs, np.nan)
 
     for i in range(len(Hs)):
         if not -5/2 < Hs[i] < 1/2: # Condition for validity for these formulas
@@ -486,13 +490,21 @@ def deltaprime_crit_on_modes(rdcon_xarray, force_lmfp=False):
         chi_frac_noisland = chi_para / chi_perp_surf[i]
         DeltaPrimeCrits15[i] = (1/2)*np.pi**(3/2)*chi_frac_noisland**(1/4)*v1_rationals[i]*(-Drs[i])*(alpha*alpha*Lambda*Lambda/(avg_Bsq_surf[i]*avg_dVsq))**(1/4)
         DeltaPrimeCrits15_no_chifrac[i] = DeltaPrimeCrits15[i]/(chi_frac_noisland**(1/4))
+        # Julia GPEC SLAYER's chi_para (LayerParameters._solve_dc_tmp): the smfp-lmfp harmonic mean (Fitzpatrick 2023
+        # Eq. 14.209) at the self-consistent W_d = sqrt(8) w_c (Eq. 14.208), w_c from RDCON's W_c. Converges >= 4x per step.
+        perp_on_para = lambda w: chi_perp_surf[i]*(1/chi_para_smfp_surf[i] + w/chi_para_lmfp_no_w_surf[i])
+        W_d = X0s[i]
+        for _ in range(30):
+            W_d = np.sqrt(8)*(Wc_prefac_m_surf[i]*perp_on_para(W_d))**(1/4)
+        DeltaPrimeCrits15_slayer[i] = DeltaPrimeCrits15_no_chifrac[i]/perp_on_para(W_d)**(1/4)
 
     rdcon_xarray = rdcon_xarray.assign(
         Qcrit_surf = like(Qcrits, rdcon_xarray['psi_n_rational']), # Glasser et al. Phys. Fluids 1975, Eq 110.
         Delta_prime_crit = like(DeltaPrimeCrits75, rdcon_xarray['psi_n_rational']), # Glasser et al. Phys. Fluids 1975, Eq 111.
         DeltaPrime_crit_no_X0 = like(DeltaPrimeCrits75_no_X0, rdcon_xarray['psi_n_rational']), # Multiply by (1/X0)^(1-2Hs) to get Delta_prime_crit if you are modifying resistivity and/or mass density.
         Delta_prime_tcrit = like(DeltaPrimeCrits15, rdcon_xarray['psi_n_rational']),  # Connor et al. PPCF 2015, Eq 59. Requires small Dr, small H assumption to be valid (generally true, see Benjamin et al., NF 2025).
-        Delta_prime_tcrit_no_chifrac = like(DeltaPrimeCrits15_no_chifrac, rdcon_xarray['psi_n_rational'])  # Multiply by (chi_para/chi_perp)^(1/4) to get DeltaPrime_crit2 if you are modifying transport coefficients.
+        Delta_prime_tcrit_no_chifrac = like(DeltaPrimeCrits15_no_chifrac, rdcon_xarray['psi_n_rational']),  # Multiply by (chi_para/chi_perp)^(1/4) to get DeltaPrime_crit2 if you are modifying transport coefficients.
+        Delta_prime_tcrit_slayer = like(DeltaPrimeCrits15_slayer, rdcon_xarray['psi_n_rational'])  # Eq 59 with Julia GPEC SLAYER's chi_para (dc_type=:toroidal; SLAYER takes the geometric factor as an input).
     )
 
     # All we need for S, X0, and Delta_prime_crit, in m3dc1 is n, eta(spitz or otherwise), and mass density (ni, ion mass, ne - see mre_terms_on_modes for formula.)

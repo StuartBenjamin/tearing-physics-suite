@@ -59,6 +59,25 @@ def test_deltaprime_crit_matches_ggj_eq87(rdcon_surface_terms):
     np.testing.assert_allclose(float(deltaprime_crit_on_modes(rd)['Delta_prime_crit'][0]), eq87(1j*qc).real, rtol=1e-8)
 
 
+def test_deltaprime_tcrit_slayer_matches_julia_cylinder(rdcon_surface_terms):
+    """In a cylinder Delta_prime_tcrit_slayer has the chi_para of Julia GPEC's SLAYER (LayerParameters._solve_dc_tmp:
+    W_d/r = sqrt(8) (chi_perp/chi_para)^(1/4) (eps s n)^(-1/2), chi_para_lmfp = 2 R0 v_te/(sqrt(pi) n s W_d/r))."""
+    R0, r, s, vte, smfp, chi_perp, dpsin_dr = 1.7, 0.4, 1.5, 4e7, 2e9, 1.0, 2.0
+    n = rdcon_surface_terms.n
+    rd = rdcon_surface_terms.copy(deep=True)
+    rd['chi_para_smfp_surf'][0], rd['chi_perp_surf'][0] = smfp, chi_perp
+    rd['chi_para_lmfp_no_w_surf'][0] = 2*R0*vte*r*dpsin_dr/(np.sqrt(np.pi)*n*s)   # psi_n/s_flux = r dpsi_n/dr/s
+    rd['Wc_prefac_m_surf'][0] = (dpsin_dr**2*R0*r/(n*s))**2                       # w_c^4 chi_para/chi_perp, w_c in psi_n
+    Wd = 0.1
+    for _ in range(100):
+        lmfp = 2*R0*vte/(np.sqrt(np.pi)*n*s*Wd)
+        chi_para = smfp*lmfp/(smfp + lmfp)
+        Wd = np.sqrt(8)*(chi_perp/chi_para)**0.25/np.sqrt(r/R0*s*n)
+    out = deltaprime_crit_on_modes(rd)
+    np.testing.assert_allclose(float(out['Delta_prime_tcrit_slayer'][0]/out['Delta_prime_tcrit_no_chifrac'][0]),
+                               (chi_para/chi_perp)**0.25, rtol=1e-10)
+
+
 def test_spitzer_zeff_factor():
     """Z N(Z)/N(1) against Spitzer & Harm: eta_par(Z)/eta_par(1) = Z alpha(Z)/alpha(1), alpha = 0.5129, 0.4408, 0.3752."""
     z = np.array([1.0, 2.0, 4.0])
