@@ -28,7 +28,8 @@ def stage_executable(gpec_dir, code, working_dir):
 def run_gpec_code(code, working_dir, nn, fresh_start=True, save_terminal_output=True, verbose=False):
     """Run working_dir/<code> (inputs already written) and read <code>_output_n{nn}.nc.
 
-    Returns (xr.Dataset or None, ran). Must be called with the cwd set to working_dir.
+    Returns (xr.Dataset or None, ran). Must be called with the cwd set to working_dir. Raises RuntimeError if the
+    code is killed by a signal (e.g. SIGKILL from an out-of-memory kill): that is no result, not a failed calculation.
     """
     out_nc = os.path.join(working_dir, f'{code}_output_n{nn}.nc')
     if fresh_start and os.path.exists(out_nc):
@@ -44,6 +45,9 @@ def run_gpec_code(code, working_dir, nn, fresh_start=True, save_terminal_output=
         if verbose: print(f"{code} terminal output saved to {code}_terminal_output_n{nn}.txt")
     else:
         status = run_code(f'{working_dir}/{code}', shell=False, **run_env)
+    sig = -status if status < 0 else status - 128 if save_terminal_output and status > 128 else 0  # sh: 128 + signal
+    if sig:
+        raise RuntimeError(f'{code} n={nn} killed by signal {sig}')
     if status != 0 or not os.path.exists(out_nc):
         return None, False
     ds = xr.open_dataset(out_nc)

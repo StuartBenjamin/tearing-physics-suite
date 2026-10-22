@@ -66,6 +66,17 @@ def test_failed_run_returns_none(tmp_path, eq_file):
     assert rd is None and not rd_ran
 
 
+@pytest.mark.parametrize('save_terminal_output', [True, False])
+def test_killed_run_raises(tmp_path, monkeypatch, save_terminal_output):
+    """A code killed by a signal (an out-of-memory SIGKILL) raises instead of returning a failed run."""
+    monkeypatch.chdir(tmp_path)
+    exe = tmp_path / 'stride'
+    exe.write_text('#!/bin/sh\nkill -9 $$\n')
+    exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
+    with pytest.raises(RuntimeError, match='stride n=4 killed by signal 9'):
+        run_gpec_code('stride', str(tmp_path), 4, save_terminal_output=save_terminal_output)
+
+
 def test_make_results_dir_false_saves_nothing(tmp_path, eq_file):
     """make_results_dir reaches GPEC_resistive_calculation: no output_location, no copies in working_dir."""
     work = tmp_path / 'work'
