@@ -205,14 +205,16 @@ def nonlinear_resistive_calculation(eq_filename, ni_spline, ne_spline, te_keV_sp
 
 
 SAME_DRAW_RTOL = 1e-6  # fill_codes: round-off between node types passes (W4); another draw's inputs differ far more
+REBUILT_IFILE_RTOL = 1e-2  # a code check on a rebuilt i-file: its round-off moves STRIDE's surface terms (row 171)
 
 
-def fill_codes(combined_xr, other_xr):
+def fill_codes(combined_xr, other_xr, rtol=SAME_DRAW_RTOL):
     """combined_xr with other_xr's codes filled in along 'code' at other_xr's n (replacing combined_xr's entries for
     them there, e.g. a STRIDE-only draw's NaN RDCON Delta'; combined_xr's other n stay as they are), and the cross-code
     comparisons redone. Both must come from the same draw: other_xr's n among combined_xr's, and every variable without
-    'code' (surfaces, surface terms, inputs) equal where both have it, to SAME_DRAW_RTOL of its largest value (same
-    NaNs; non-floats exactly), RDCON's run times aside; else ValueError. Variables without 'code' are combined_xr's."""
+    'code' (surfaces, surface terms, inputs) equal where both have it, to rtol of its largest value (same NaNs;
+    non-floats exactly), RDCON's run times aside; else ValueError. Variables without 'code' are combined_xr's. Above
+    SAME_DRAW_RTOL, the largest relative difference is in attrs['same_draw_rel_diff']."""
     def rel_diff(v):
         a, b = xr.align(combined_xr[v], other_xr[v], join='inner')
         if a.dtype.kind not in 'fc' or b.dtype.kind not in 'fc':
@@ -229,7 +231,7 @@ def fill_codes(combined_xr, other_xr):
         raise ValueError(f'fill_codes: not the same draw (n {other_xr.nn.values} not among the draw\'s)')
     diffs = {v: rel_diff(v) for v in combined_xr.data_vars if v in other_xr and 'code' not in combined_xr[v].dims
              and '_across_' not in v and v not in ('cpu_time', 'wall_time')}
-    worst = sorted(((d, v) for v, d in diffs.items() if d > SAME_DRAW_RTOL), reverse=True)
+    worst = sorted(((d, v) for v, d in diffs.items() if d > rtol), reverse=True)
     if worst:
         raise ValueError('fill_codes: not the same draw (largest relative differences: '
                          + ', '.join(f'{v} {d:.1e}' for d, v in worst[:5]) + ')')
@@ -238,10 +240,12 @@ def fill_codes(combined_xr, other_xr):
     filled = in_code_order(xr.concat([kept, other_xr], dim='code', data_vars='minimal', coords='minimal',
                                      compat='override', join='outer'))
     filled = delta_prime_variability(filled) if filled.sizes['code'] > 1 else filled
-    if len(n) == combined_xr.sizes['nn']:
-        return filled
-    return in_code_order(xr.concat([combined_xr.drop_sel(nn=n), filled], dim='nn', data_vars='minimal',
-                                   coords='minimal', compat='override', join='outer').sortby('nn'))
+    if len(n) < combined_xr.sizes['nn']:
+        filled = in_code_order(xr.concat([combined_xr.drop_sel(nn=n), filled], dim='nn', data_vars='minimal',
+                                         coords='minimal', compat='override', join='outer').sortby('nn'))
+    if rtol > SAME_DRAW_RTOL:
+        filled = filled.assign_attrs(same_draw_rel_diff=max(diffs.values(), default=0.0))
+    return filled
 
 def clean_multi_n_dictionaries(input_dict_vec):
     """Merge per-n input dictionaries into a single dict, grouping n-dependent entries.

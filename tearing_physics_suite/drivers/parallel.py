@@ -639,6 +639,8 @@ def _run_draw(it, cfg, kwargs, ddir, eq, prof, attempt, wd, run_case, spot=None,
                               labels=dict(shot_id=it['shot'], t_ms=it['t_ms'], draw=c, variant=it['variant']))
         rec.update(status='ok' if ds is not None else 'error', inputs=_scalars(inputs), code_wall_s=_code_wall_s(),
                    error=None if ds is not None else dict(signature='no combined_xr'))
+        if ds is not None and 'same_draw_rel_diff' in ds.attrs:            # a check on a rebuilt i-file
+            rec['same_draw_rel_diff'] = float(ds.attrs['same_draw_rel_diff'])
         if ds is not None and flag:                                         # never fails the draw
             try:
                 rec['stride_flagged_n'] = stride_flagged_n(ds, flag)
@@ -678,17 +680,19 @@ def _check_memory(need_gib):
 
 def _check_case(eq, prof, kwargs, wd, nc_path, pkl_path=None, label=None, labels=None, need_gib=0.0):
     """run_case for a code check: the check's codes on the draw's inputs, filled into its dataset (<count>.nc), the
-    result written to nc_path (<count>.codes.nc)."""
+    result written to nc_path (<count>.codes.nc). On a rebuilt i-file the match is REBUILT_IFILE_RTOL."""
     import xarray as xr
 
     from tearing_physics_suite.drivers import multi_run
-    from tearing_physics_suite.drivers.pipeline import fill_codes
+    from tearing_physics_suite.drivers.pipeline import REBUILT_IFILE_RTOL, SAME_DRAW_RTOL, fill_codes
+    from tearing_physics_suite.drivers.profile_read import IFILE_REBUILT
     _check_memory(need_gib)
     other, inputs = multi_run.run_case(eq, prof, kwargs, wd, os.path.join(wd, 'codes.nc'), pkl_path, label, labels)
     if other is None:
         return None, inputs
+    rtol = REBUILT_IFILE_RTOL if eq in IFILE_REBUILT else SAME_DRAW_RTOL
     with xr.open_dataset(nc_path.removesuffix('.codes.nc') + '.nc', engine='scipy') as ds:
-        ds = fill_codes(ds.load().drop_encoding(), other)        # the file's int dtypes would not hold NaN padding
+        ds = fill_codes(ds.load().drop_encoding(), other, rtol)  # the file's int dtypes would not hold NaN padding
     _write_nc(ds, nc_path)
     return ds, inputs
 

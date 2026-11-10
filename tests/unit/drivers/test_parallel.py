@@ -617,6 +617,23 @@ def test_fill_keeps_the_draws_other_n(tmp_path, monkeypatch):
     assert stride.values.tolist() == [2.0, 4.0] and not (tmp_path / '0.fill.nc').exists()
 
 
+def test_check_on_rebuilt_ifile_matches_loosely(tmp_path, monkeypatch):
+    """A code check fills its draw to SAME_DRAW_RTOL, or REBUILT_IFILE_RTOL on a rebuilt i-file (with its difference)."""
+    from tearing_physics_suite.drivers import pipeline
+    monkeypatch.setattr(pipeline, 'delta_prime_variability', lambda ds: ds)   # the fakes have no Delta_prime_surf
+
+    def dataset(code, qlim):
+        return xr.Dataset({'Delta_prime': (('nn', 'code', 'r'), [[[1.0]]]), 'qlim': ((), qlim)},
+                          coords={'nn': [1], 'code': [code], 'r': [0]})
+    dataset('stride', 3.0).to_netcdf(tmp_path / '0.nc', engine='scipy')
+    monkeypatch.setattr(multi_run, 'run_case', lambda *a: (dataset('rdcon', 3.0 * (1 + 1e-5)), {}))
+    with pytest.raises(ValueError, match='qlim 1.0e-05'):                       # stored i-file
+        st._check_case('g.eq', None, {}, str(tmp_path), str(tmp_path / '0.codes.nc'))
+    monkeypatch.setitem(profile_read.IFILE_REBUILT, 'g.eq', dict(s=1.0, oft='oft'))
+    ds, _ = st._check_case('g.eq', None, {}, str(tmp_path), str(tmp_path / '0.codes.nc'))
+    assert list(ds.code.values) == ['rdcon', 'stride'] and ds.attrs['same_draw_rel_diff'] == pytest.approx(1e-5)
+
+
 def _sized_draw(study, uid, c, mpert, msing, **rec):
     """An 'ok' draw at n = 4 whose RDCON surface pass found mpert and msing surfaces."""
     d = os.path.join(study, '100', 'tps', uid, 'draws')
